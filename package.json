@@ -1,0 +1,13 @@
+{
+  "name": "hardhat-project",
+  "devDependencies": {
+    "@nomicfoundation/hardhat-chai-matchers": "^1.0.6",
+    "@nomicfoundation/hardhat-toolbox": "^2.0.2",
+    "@nomicfoundation/solidity-analyzer-linux-x64-gnu": "^0.1.2",
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
+    "chai": "^4.5.0",
+    "dotenv": "^16.6.1",
+    "ethers": "^5.8.0",
+    "hardhat": "^2.26.3"
+  }
+}
