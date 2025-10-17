@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"name": "SwiftFunds",
+			"path": "../../../../.."
+		},
+		{
+			"name": "Swiftfund",
+			"path": "../../../../../../../../../opt/lampp/htdocs/Swiftfund"
+		}
+	],
+	"settings": {}
+}

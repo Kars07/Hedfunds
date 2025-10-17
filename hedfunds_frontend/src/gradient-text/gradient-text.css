@@ -1,0 +1,109 @@
+
+
+.parallax-container {
+  height: 25vh; /* Full viewport height */
+  display: flex;
+  position: relative;
+}
+
+.parallax-text {
+  font-size: 4rem;
+  font-weight: bold;
+  color: #333;
+  position: absolute; /* Needed for the text to move freely */
+  transition: transform 0.1s ease-out; /* Smooth transition */
+}
+
+/* Card transition */
+.perspective {
+  perspective: 1000px;
+}
+
+.preserve-3d {
+  transform-style: preserve-3d;
+}
+
+.backface-hidden {
+  backface-visibility: hidden;
+}
+
+.rotate-y-180 {
+  transform: rotateY(180deg);
+}
+/* End of Card transition */
+
+
+/* Zoom Parallax effect */
+.container {
+height: 200vh;
+position: relative;
+justify-content: center;
+align-content: center;
+display: flex;
+width: 100%;
+margin: auto;
+
+}
+
+.sticky_ {
+position: sticky;
+height: 100vh;
+width: 100vw;
+top: 12em;
+}
+
+.element {
+width: 100%;
+height: 50%;
+top: 0;
+position: absolute;
+display: flex;
+align-items: center;
+justify-content: center;
+
+}
+
+.element .videoContainer {
+width: 30vw;
+height: 25vw;
+position: relative;
+border-radius: 100px;
+transition: all 0.2s ease-in-out;
+}
+
+.element .videoContainer img {
+object-fit: cover;
+width: 100%;
+height: 100%;
+border-radius: 50px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+.element .videoContainer {
+  width: 50vw;
+  height: 50vw;
+  
+}
+}
+
+@media (max-width: 480px) {
+.element .videoContainer {
+  width: 70vw;
+  height: 70vw;
+}
+}
+/* end of Zoom Parallax effect */
+
+
+
+/* hide scroll bar */
+.hide-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;  /* IE 10+ */
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome, Safari, Edge */
+}
+/* end of hide scroll bar */

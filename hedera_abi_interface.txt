@@ -1,0 +1,84 @@
+//
+// Functions (read-only)
+//
+
+0.
+function calculateDebt(uint256 _loanId) view returns (uint256) 
+VIEW 
+0x28cd5a99
+
+
+1.
+function getLoan(uint256 _loanId) view returns ((address borrower, address lender, uint256 loanAmount, uint256 interest, uint256 deadline, uint8 status, uint256 createdAt))
+VIEW
+0x504006ca
+
+2.
+function isLoanActive(uint256 _loanId) view returns (bool)
+VIEW
+0xb03590be
+
+3.
+function loanCounter() view returns (uint256)
+VIEW
+0x34d9289e
+0
+
+4.
+function loans(uint256) view returns (address borrower, address lender, uint256 loanAmount, uint256 interest, uint256 deadline, uint8 status, uint256 createdAt)
+VIEW
+0xe1ec3c68
+//
+// Functions (read-write)
+//
+
+0.
+function editLoanRequest(uint256 _loanId, uint256 _newLoanAmount, uint256 _newInterest, uint256 _newDeadline)
+NONPAYABLE
+0x457da20d
+
+1.
+function fundLoan(uint256 _loanId) payable
+PAYABLE
+0x846b909a
+
+2.
+function markAsDefaulted(uint256 _loanId)
+NONPAYABLE
+0xa8743022
+
+3.
+function repayLoan(uint256 _loanId) payable
+PAYABLE
+0xab7b1c89
+
+4.
+function requestLoan(uint256 _loanAmount, uint256 _interest, uint256 _deadline) returns (uint256)
+NONPAYABLE
+0xedadbbfe
+//
+// Events
+//
+
+event LoanDefaulted(uint256 indexed loanId)
+event LoanEdited(uint256 indexed loanId, uint256 newLoanAmount, uint256 newInterest, uint256 newDeadline)
+event LoanFunded(uint256 indexed loanId, address indexed lender, uint256 amount)
+event LoanRepaid(uint256 indexed loanId, address indexed borrower, uint256 totalAmount)
+event LoanRequested(uint256 indexed loanId, address indexed borrower, uint256 loanAmount, uint256 interest, uint256 deadline)
+//
+// Errors
+//
+
+error DeadlineExpired()
+error IncorrectFundingAmount()
+error IncorrectRepaymentAmount()
+error InvalidDeadline()
+error InvalidLoanAmount()
+error InvalidLoanStatus()
+error LoanAlreadyFunded()
+error LoanNotFound()
+error SelfFundingNotAllowed()
+error UnauthorizedAccess()
+//
+// No other definitions
+//
