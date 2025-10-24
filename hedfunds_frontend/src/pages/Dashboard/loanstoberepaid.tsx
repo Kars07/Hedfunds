@@ -125,6 +125,12 @@ const LoanToBeRepaid: React.FC = () => {
         setSession(lastSession);
         const accounts = lastSession.namespaces.hedera?.accounts || [];
         console.log("All accounts from session:", accounts);
+        
+        // Log each account individually to see the full format
+        accounts.forEach((acc, idx) => {
+          console.log(`Account ${idx}:`, acc);
+        });
+        
         if (accounts.length > 0) {
           // Try to extract account ID from the session
           // Format can be: "hedera:testnet:0.0.7116345" or similar
@@ -191,6 +197,12 @@ const LoanToBeRepaid: React.FC = () => {
         }
 
         console.log("All accounts from new session:", accounts);
+        
+        // Log each account individually to see the full format
+        accounts.forEach((acc, idx) => {
+          console.log(`Account ${idx}:`, acc);
+        });
+        
         const newAccountId = accounts[0].split(":")[2];
         console.log("Extracted new account ID:", newAccountId);
         if (!newAccountId.match(/^\d+\.\d+\.\d+$/)) {
@@ -284,22 +296,103 @@ const LoanToBeRepaid: React.FC = () => {
       if (result.result) {
         const resultHex = result.result.startsWith('0x') ? result.result.substring(2) : result.result;
         
-        // Parse loan struct fields (each 32 bytes)
-        const borrowerHex = '0x' + resultHex.substring(24, 64); // Skip padding, get last 20 bytes
-        const lenderHex = '0x' + resultHex.substring(88, 128);
+        // Parse loan struct fields (each 32 bytes = 64 hex chars)
+        // Address fields are 20 bytes but padded to 32 bytes (left-padded with zeros)
+        // We need to take the LAST 40 hex chars (20 bytes) for addresses
+        
+        const borrowerHex = '0x' + resultHex.substring(24, 64); // Last 20 bytes of first 32-byte slot
+        const lenderHex = '0x' + resultHex.substring(88, 128); // Last 20 bytes of second 32-byte slot
+        
+        console.log(`Loan ${loanId} raw hex parsing:`, {
+          borrowerHex,
+          lenderHex,
+          fullResultLength: resultHex.length
+        });
+        
         const loanAmountHex = resultHex.substring(128, 192);
         const interestHex = resultHex.substring(192, 256);
         const deadlineHex = resultHex.substring(256, 320);
         const statusHex = resultHex.substring(320, 384);
         const createdAtHex = resultHex.substring(384, 448);
 
-        const borrower = hexToAccountId(borrowerHex);
-        const lender = hexToAccountId(lenderHex);
+        console.log(`Converting borrower hex: ${borrowerHex}`);
+        
+        // Convert borrower address inline
+        let borrower = borrowerHex;
+        const cleanBorrowerHex = borrowerHex.startsWith('0x') ? borrowerHex.substring(2) : borrowerHex;
+        
+        if (cleanBorrowerHex.match(/^0{24,}/)) {
+          // Simple format
+          const trimmed = cleanBorrowerHex.replace(/^0+/, '') || '0';
+          borrower = `0.0.${parseInt(trimmed, 16)}`;
+          console.log(`✅ Borrower simple format: ${borrower}`);
+        } else {
+          // Query Mirror Node
+          console.log(`🌐 Querying Mirror Node for borrower: ${borrowerHex}`);
+          try {
+            const resp = await fetch(`https://testnet.mirrornode.hedera.com/api/v1/accounts/${borrowerHex}`);
+            if (resp.ok) {
+              const data = await resp.json();
+              if (data.account) {
+                borrower = data.account;
+                console.log(`✅ Borrower resolved: ${borrower}`);
+              }
+            } else {
+              console.error(`❌ Mirror Node error for borrower: ${resp.status}`);
+            }
+          } catch (e) {
+            console.error(`❌ Error querying borrower:`, e);
+          }
+        }
+        
+        console.log(`Converted borrower to: ${borrower}`);
+        console.log(`Converting lender hex: ${lenderHex}`);
+        
+        // Convert lender address inline
+        let lender = lenderHex;
+        const cleanLenderHex = lenderHex.startsWith('0x') ? lenderHex.substring(2) : lenderHex;
+        
+        if (cleanLenderHex.match(/^0{24,}/)) {
+          // Simple format
+          const trimmed = cleanLenderHex.replace(/^0+/, '') || '0';
+          lender = `0.0.${parseInt(trimmed, 16)}`;
+          console.log(`✅ Lender simple format: ${lender}`);
+        } else {
+          // Query Mirror Node
+          console.log(`🌐 Querying Mirror Node for lender: ${lenderHex}`);
+          try {
+            const resp = await fetch(`https://testnet.mirrornode.hedera.com/api/v1/accounts/${lenderHex}`);
+            if (resp.ok) {
+              const data = await resp.json();
+              if (data.account) {
+                lender = data.account;
+                console.log(`✅ Lender resolved: ${lender}`);
+              }
+            } else {
+              console.error(`❌ Mirror Node error for lender: ${resp.status}`);
+            }
+          } catch (e) {
+            console.error(`❌ Error querying lender:`, e);
+          }
+        }
+        
+        console.log(`Converted lender to: ${lender}`);
+        
         const loanAmount = BigInt('0x' + loanAmountHex).toString();
         const interest = BigInt('0x' + interestHex).toString();
         const deadline = parseInt(deadlineHex, 16);
         const status = parseInt(statusHex, 16);
         const createdAt = parseInt(createdAtHex, 16);
+
+        console.log(`Loan ${loanId} parsed values:`, {
+          borrower,
+          lender,
+          loanAmount,
+          interest,
+          deadline: new Date(deadline * 1000).toISOString(),
+          status,
+          createdAt
+        });
 
         return {
           loanId,
