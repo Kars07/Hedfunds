@@ -12,7 +12,7 @@ const sendResetEmail = async (email, token) => {
   });
 
   const mailOptions = {
-    from: `SwiftFund Team <${process.env.EMAIL_USER}>`,
+    from: `Hedfunds Team <${process.env.EMAIL_USER}>`,
     to: email,
     subject: "Reset Your Password",
     html: `
@@ -30,7 +30,7 @@ const sendResetEmail = async (email, token) => {
         <p style="word-break: break-word;">${resetLink}</p>
         <p>This link will expire in 15 minutes.</p>
         <p>If you did not request this, you can safely ignore this email.</p>
-        <p>Best regards,<br>SwiftFund Team</p>
+        <p>Best regards,<br>Hedfunds Team</p>
       </div>
     `,
   };

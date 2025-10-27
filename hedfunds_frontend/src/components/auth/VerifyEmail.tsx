@@ -1,6 +1,6 @@
 import React from 'react';
 import logo from '../../assets/logo.png';
-import cardanoImg from '../../assets/cardano_image.png'
+import HederaImg from '../../assets/Hedera_Img.png'
 import { useNavigate } from 'react-router-dom';
 
 const VerifyEmail: React.FC = () => {
@@ -14,9 +14,9 @@ const VerifyEmail: React.FC = () => {
           <div className="flex items-center space-x-2">
             {/* Logo Icon */}
            <img 
-           src={logo} alt="SwiftFunds Logo" className="w-8 h-auto mr-3" 
+           src={logo} alt="Hedfunds Logo" className="w-8 h-auto mr-3" 
            />
-            <span className="text-xl font-bold text-black">SWIFTFUND</span>
+            <span className="text-xl font-bold text-black">HEDFUNDS</span>
           </div>
         </div>
         <hr className="my-3 border-t border-gray-200" />
@@ -51,7 +51,7 @@ const VerifyEmail: React.FC = () => {
         <div className="bg-gray-50 -mx-8 px-8 py-4 rounded-b-2xl mt-4">
           <p className="text-gray-400 text-xs text-center">
             You're receiving this email because your account needs to be verified before you can proceed to use our services.<br/>
-            © 2025. swiftfund.com All rights reserved<br/>
+            © 2025. hedfunds.com All rights reserved<br/>
             Lagos Nigeria, 100015.
           </p>
         </div>
@@ -59,7 +59,7 @@ const VerifyEmail: React.FC = () => {
           <a href="#" className="text-xs text-gray-400 hover:underline">Unsubscribe</a>
           <span className="text-xs text-gray-400"> 
              <img 
-           src={cardanoImg} alt="Cardano Logo" className="w-20 h-auto" 
+           src={HederaImg} alt="Hedera Logo" className="w-20 h-auto" 
            />
           </span>
         </div>

@@ -9,9 +9,9 @@ export const HowItWorks = () => {
     <div className='relative w-full   bg-white min-h-[100vh] md:min-h-[170vh] pb-0 md:pb-10 overflow-hidden md:px-4'>
       <section className="bg-white pt-20 flex justify-center items-center text-center">
         <div className="mx-auto text-center ">
-          <h2 className="text-3xl font-bold mb-4 text-gray-900 px-4">Explore Decentralized Lending with Swiftfund</h2>
+          <h2 className="text-3xl font-bold mb-4 text-gray-900 px-4">Explore Decentralized Lending with HedFunds</h2>
           <p className="md:text-lg md:px-2 text-gray-700 mb-6 m-auto text-center w-[70%] md:w-[50%]">
-            Start with SWIFTFund to take control of your financial future through secure, transparent,
+            Start with HedFunds  to take control of your financial future through secure, transparent,
             peer-to-peer lending. Experience trustless finance with blockchain at its core.
           </p>
           <a href="#" className="inline-block hover:bg-orange-600 border-3 hover:text-white delay-100 duration-150 text-orange-600 rounded-3xl px-6 py-3 font-semibold shadow hover:transition">

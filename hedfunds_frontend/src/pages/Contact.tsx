@@ -34,7 +34,7 @@ const Contact: React.FC = () => {
       const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/users/contact`, formData);
 
       if (response.status === 200) {
-        setSuccessMessage("Thank you for contacting SwiftFund! We'll get back to you soon.");
+        setSuccessMessage("Thank you for contacting HedFunds! We'll get back to you soon.");
         setFormData({ fullName: "", email: "", companyName: "", message: "" });
       }
     } catch (error) {
@@ -55,7 +55,7 @@ const Contact: React.FC = () => {
         <div className="w-full lg:w-[40%] pt-10 lg:pt-[5%] flex flex-col text-center justify-center items-center">
           <h1 className="text-4xl sm:text-5xl lg:text-7xl italic font-special">Let's Chat</h1>
           <h2 className="px-6 sm:px-10 pt-4 text-base sm:text-lg">
-            At Swiftfund, we prioritize timely responses to your needs.
+            At HedFunds, we prioritize timely responses to your needs.
           </h2>
         </div>
 

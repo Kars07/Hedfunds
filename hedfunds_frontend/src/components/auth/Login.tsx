@@ -59,8 +59,8 @@ const Login: React.FC = () => {
   return (
     <div className='bg-orange-50 h-[120vh] md:p-15 p-4'>
       <div className="flex items-center mb-">
-        <img src={logo} alt="SwiftFunds Logo" className="w-8 h-auto mr-3" />
-        <h2 className="text-2xl font-bold text-zinc-800">SWIFTFUND</h2>
+        <img src={logo} alt="HeadFunds Logo" className="w-8 h-auto mr-3" />
+        <h2 className="text-2xl font-bold text-zinc-800">HEDFUNDS</h2>
       </div>
       <div className='flex md:flex-row flex-col w-full md:mt-20 mt-15 justify-between'>
         <div className='font-bold text-zinc-800'>

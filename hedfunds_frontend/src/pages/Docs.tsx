@@ -68,7 +68,7 @@ const StampNetDocs: React.FC = () => {
             <img src={logo} alt="Logo" className="w-6" />
           </a>
           <div className="flex justify-center items-center">
-            <span className="text-white font-bold text-xl">SWIFTFUND</span>
+            <span className="text-white font-bold text-xl">HEDFUNDS</span>
           </div>
         </div>
         <ul className="space-y-6 pt-4 px-4 ">
@@ -104,17 +104,17 @@ const StampNetDocs: React.FC = () => {
           </a>
         </div>
         <h1 className="text-center text-3xl font-bold text-orange-600 py-6 pt-10">
-          SwiftFund Documentation
+          HedFunds Documentation
         </h1>
         <p className="text-center mb-6">
-          Welcome to the SwiftFund documentation page. Here you'll find all the
+          Welcome to the HedFunds documentation page. Here you'll find all the
           necessary information about how to use our decentralized microloans
-          platform, built on cardano blockchain technology to ensure trust and
+          platform, built on Hedera blockchain technology to ensure trust and
           security for lenders and borrowers.
         </p>
 
         <Section id="introduction" title="Introduction">
-          SwiftFund is a decentralized microloans platform built on blockchain
+          HedFunds is a decentralized microloans platform built on blockchain
           technology. It connects borrowers in need of small loans with lenders
           willing to provide capital, all while ensuring trust, security, and
           transparency. By utilizing blockchain, we eliminate intermediaries
@@ -137,7 +137,7 @@ const StampNetDocs: React.FC = () => {
         <Section id="getting-started" title="Getting Started">
           <ol className="list-decimal pl-6 space-y-2">
             <li>
-              Create an account by signing up on SwiftFund or connect your
+              Create an account by signing up on HedFunds  or connect your
               wallet.
             </li>
             <li>
@@ -196,10 +196,10 @@ const StampNetDocs: React.FC = () => {
           <div className="space-y-4">
             <div>
               <p>
-                <strong>What is SwiftFund?</strong>
+                <strong>What is HedFunds ?</strong>
               </p>
               <p>
-                SwiftFund is a decentralized platform for microloans, where
+                HedFunds is a decentralized platform for microloans, where
                 borrowers can apply for loans, and lenders can choose to fund
                 these loans directly on the blockchain.
               </p>
@@ -209,7 +209,7 @@ const StampNetDocs: React.FC = () => {
                 <strong>How does the loan application process work?</strong>
               </p>
               <p>
-                Borrowers can fill out an application on the SwiftFund platform,
+                Borrowers can fill out an application on the HedFunds platform,
                 specifying the loan amount, repayment terms, and the purpose of
                 the loan. Lenders can then choose to fund these requests.
               </p>
@@ -231,14 +231,14 @@ const StampNetDocs: React.FC = () => {
           For assistance, please reach out via our handle:
           <div className="flex space-x-4 text-2xl mt-4">
             <a
-              href="https://x.com/SwiftFund_"
+              href="https://x.com/SocioSpark_"
               target="_blank"
               rel="noopener noreferrer"
             >
               <i className="bx bxl-twitter"></i>
             </a>
             <a
-              href="https://github.com/Kars07/SwiftFunds"
+              href="https://github.com/Kars07/Hedfunds"
               target="_blank"
               rel="noopener noreferrer"
             >

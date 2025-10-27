@@ -21,7 +21,7 @@ const handleContact = async (req, res) => {
       to: process.env.CONTACT_RECEIVER,
       subject: `New ContactUs Message from ${companyName}`,
       html: `
-        <h3>New Contact Message from SwiftFund App by ${companyName}</h3>
+        <h3>New Contact Message from Hedfunds App by ${companyName}</h3>
         <p><strong>Name:</strong> ${fullName}</p>
         <p><strong>Email:</strong> ${email}</p>
         <p><strong>Company:</strong> ${companyName}</p>

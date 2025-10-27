@@ -58,8 +58,8 @@ const ResetPassword: React.FC = () => {
       {/* Navbar */}
       <nav className="bg-white shadow fixed top-0 left-0 w-full z-10">
         <div className="max-w-6xl mx-auto py-4 px-6 flex items-center">
-          <img src={logo} alt="Swiftfund Logo" className="w-10 h-10" />
-          <span className="ml-3 text-xl font-bold text-black tracking-wide">SWIFTFUND</span>
+          <img src={logo} alt="HedFunds Logo" className="w-10 h-10" />
+          <span className="ml-3 text-xl font-bold text-black tracking-wide">HEDFUNDS</span>
         </div>
       </nav>
 

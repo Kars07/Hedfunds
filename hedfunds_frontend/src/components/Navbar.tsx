@@ -26,8 +26,8 @@ const Navbar: React.FC = () => {
         <div className="flex justify-between items-center px-6 py-4">
           {/* Logo */}
           <Link to="/" className="flex items-center text-xl font-bold space-x-2">
-            <img src={logo} alt="Swiftfund Logo" className="w-10 mb-2 h-auto" />
-            <span className="text-gray-800 font-dans">SWIFTFUND</span>
+            <img src={logo} alt="HedFunds Logo" className="w-10 mb-2 h-auto" />
+            <span className="text-gray-800 font-dans">HEDFUNDS</span>
           </Link>
 
           {/* Desktop Links */}

@@ -43,9 +43,9 @@ const Card: React.FC<CardProps> = ({ title, contents, rotate, lastCard, index })
 const FAQ: React.FC = () => {
   const cardData: CardProps[] = [
     {
-      title: "What is Swiftfund ?",
+      title: "What is HedFunds ?",
       contents: [
-        "Swiftfund is a decentralized platform that lets people borrow and lend money directly with each other using blockchain technology. No banks, no middlemen — just fast, fair loans secured by smart contracts on Cardano."
+        "HedFunds is a decentralized platform that lets people borrow and lend money directly with each other using blockchain technology. No banks, no middlemen — just fast, fair loans secured by smart contracts on Hedera."
       ],
       rotate: "rotate-2",
       lastCard: false,
@@ -54,14 +54,14 @@ const FAQ: React.FC = () => {
     {
       title: "How is it different from traditional lending?",
       contents: [
-        "Unlike banks or loan apps that require paperwork, collateral, or charge high fees, Swiftfund works purely on trust scores and blockchain automation. That means no delays, no bias — and full transparency."
+        "Unlike banks or loan apps that require paperwork, collateral, or charge high fees, HedFunds works purely on trust scores and blockchain automation. That means no delays, no bias — and full transparency."
       ],
       rotate: "-rotate-2",
       lastCard: false,
       index: 1,
     },
     {
-      title: "How do smart contracts work in Swiftfund?",
+      title: "How do smart contracts work in HedFunds?",
       contents: [
         "When a loan is funded, the smart contract holds the funds and sets conditions for repayment. If the borrower repays in time, the contract sends the lender their money back with interest. If not, the borrower’s reputation score drops."
       ],
@@ -72,14 +72,14 @@ const FAQ: React.FC = () => {
     {
       title: "What is a reputation score and how is it calculated?",
       contents: [
-        "It’s a decentralized trust rating based on your actions on Swiftfund — like timely repayment, successful loans funded, or bad behavior (missed payments, scams). The better your score, the more people will want to lend to you."
+        "It’s a decentralized trust rating based on your actions on HedFunds — like timely repayment, successful loans funded, or bad behavior (missed payments, scams). The better your score, the more people will want to lend to you."
       ],
       rotate: "-rotate-4",
       lastCard: false,
       index: 3,
     },
     {
-      title: "Do I need to stake or lock in funds to use Swiftfund?",
+      title: "Do I need to stake or lock in funds to use HedFunds?",
       contents: [
         "No staking is required to get started. But once you decide to fund a loan, your funds will be temporarily locked in a smart contract until the loan is complete."
       ],
@@ -88,7 +88,7 @@ const FAQ: React.FC = () => {
       index: 4,
     },
     {
-      title: "Can I make money with Swiftfund?",
+      title: "Can I make money with HedFunds?",
       contents: [
         "Yes. Lenders earn interest when loans are repaid. Borrowers benefit from quick access to funds. It’s a win-win when everyone plays fair."
       ],

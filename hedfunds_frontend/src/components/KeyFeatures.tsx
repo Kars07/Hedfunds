@@ -38,7 +38,7 @@ const KeyFeatures: React.FC = () => {
 
   return (
     <div className="md:py-30 pb-0 px-5 md:mt-20 mt-100 overflow-hidden">
-      <h1 className="text-4xl md:pt-10 font-bold text-gray-900 text-center">KEY FEATURES OF SWIFTFUND</h1>
+      <h1 className="text-4xl md:pt-10 font-bold text-gray-900 text-center">KEY FEATURES OF HEDFUNDS</h1>
       <div className="justify-center text-center items-center pt-3 flex">
          <div className=''>We are all about our client's comfort and safety. That's why we provide the best service you</div>
       </div>
@@ -89,7 +89,7 @@ const KeyFeatures: React.FC = () => {
         <div className="justify-center md:flex md:flex-col items-center mb-14 md:mb-0  py-20 md:py-0 md:border-none md:rounded-none md:shadow-none border-4 rounded-4xl shadow-2xl">
           <h1 className="text-black md:px-0 px-10 font-medium text-3xl md:text-3xl pt-0 md:pt-10 pb-5">📤 Blockchain Submissions</h1>
           <h2 className='md:text-lg text-xl px-2'>
-            Loan requests are submitted to the Cardano<br />
+            Loan requests are submitted to the Hedera<br />
             blockchain, ensuring transparency, immutability, <br />
             and auditability of all actions.
           </h2>

@@ -71,7 +71,7 @@ const WelcomeModal: React.FC<{
         
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
-            Welcome to SwiftFund Dashboard
+            Welcome to HedFunds Dashboard
           </h1>
           <p className="text-lg text-gray-600">
             Hello, <span className="font-semibold text-orange-600">{userName}</span>! 
@@ -599,7 +599,7 @@ return (
             <div className="flex-1">
               {/* Header */}
               <div className="flex items-center md:pt-0 pt-8 space-x-3 mb-8">
-                <img src={logo} alt="Swiftfund Logo" className="w-8 h-8" />
+                <img src={logo} alt="HedFunds Logo" className="w-8 h-8" />
                 <div className="text-xl text-black font-bold">
                   <span >DASHBOARD</span>
                 </div>

@@ -60,9 +60,9 @@ export const WhyChoose: React.FC = () => {
   return (
     <div className="align-middle">
       <div className="pt-20 text-white text-center">
-        <h1 className="pb-3 text-4xl font-bold text-black">WHY CHOOSE SWIFTFUND</h1>
+        <h1 className="pb-3 text-4xl font-bold text-black">WHY CHOOSE HEDFUNDS</h1>
         <h2 className="text-black max-w-4xl mx-auto px-4 leading-relaxed">
-          At SwiftFund, we believe financial freedom should be accessible to everyone. That’s why we’ve
+          At HedFunds, we believe financial freedom should be accessible to everyone. That’s why we’ve
           built a community-first platform where borrowers and lenders connect directly. 
         </h2>
         <div className="justify-center flex mt-4">
@@ -74,7 +74,7 @@ export const WhyChoose: React.FC = () => {
         <div className="flex flex-wrap justify-center space-x-2">
           <FlipCard
             frontTitle="Secure"
-            backText="Built on Cardano ensuring end-to-end security"
+            backText="Built on Hedera ensuring end-to-end security"
             image={secure}
           />
           <FlipCard

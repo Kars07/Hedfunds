@@ -75,8 +75,8 @@ const Registration: React.FC = () => {
   return (
     <div className="  h-[150vh] bg-orange-50  md:p-15 pt-8 px-4 ">
       <div className="flex items-center4 mb-">
-        <img src={logo} alt="SwiftFunds Logo" className="w-8 h-auto mr-3" />
-        <h2 className="text-2xl font-bold text-zinc-800">SWIFTFUND</h2>
+        <img src={logo} alt="HeadFunds Logo" className="w-8 h-auto mr-3" />
+        <h2 className="text-2xl font-bold text-zinc-800">HEDFUNDS</h2>
       </div>
       <div className='flex flex-col md:flex-row w-full mt-15 md:mt-20  justify-between'>
        <div className='md:p-8 py-6 px-5 bg-white w-full rounded-2xl shadow-2xl  md:w-[55%]'>

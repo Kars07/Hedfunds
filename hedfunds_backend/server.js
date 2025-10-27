@@ -94,7 +94,7 @@ connectDB();
 
 // Root route
 app.get("/", (req, res) => {
-  res.send("Welcome to the SwiftFund Backend API!");
+  res.send("Welcome to the Hedfunds Backend API!");
 });
 
 // Routes

@@ -41,7 +41,7 @@ const Verification: React.FC<VerificationProps> = ({ onComplete, onClose }) => {
               Build trust by verifying your identity
             </h3>
             <p className="text-gray-600 mt-4">
-              KYC provides identity verification services for SwiftFund members.
+              KYC provides identity verification services for HedFunds members.
             </p>
             <div className="flex items-start mt-4 text-left">
               <i className="bx bx-id-card text-xl text-gray-500"></i>
@@ -52,7 +52,7 @@ const Verification: React.FC<VerificationProps> = ({ onComplete, onClose }) => {
             <a href="#" className="text-orange-500 mt-4 block">How does this work?</a>
             <div className="text-center text-sm text-gray-500 mt-6">
               <p>
-                By clicking <span className="font-medium">Verify with SwiftFund</span>, you consent to SwiftFund sharing a RequestID and a link to your SwiftFund profile with KYC, in accordance with <a href="#" className="text-orange-500">SwiftFund's Privacy Policy</a>.
+                By clicking <span className="font-medium">Verify with HedFunds</span>, you consent to HedFunds sharing a RequestID and a link to your HedFunds profile with KYC, in accordance with <a href="#" className="text-orange-500">HedFund's Privacy Policy</a>.
               </p>
               <a href="#" className="text-orange-500 mt-2 block">Learn more</a>
             </div>
@@ -61,7 +61,7 @@ const Verification: React.FC<VerificationProps> = ({ onComplete, onClose }) => {
                 onClick={handleNext}
                 className="bg-white border-2 border-orange-600 text-orange-600 font-bold py-2 px-4 rounded-3xl w-1/2 hover:bg-orange-600 hover:text-white transition duration-300"
               >
-                Verify with SwiftFund
+                Verify with HedFunds
               </button>
             </div>
           </div>

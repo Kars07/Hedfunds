@@ -10,11 +10,17 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@hashgraph/sdk": "^2.75.0",
+    "@lucid-evolution/lucid": "^0.4.29",
     "@reactour/tour": "^3.8.0",
     "@tailwindcss/vite": "^4.1.5",
+    "@walletconnect/sign-client": "^2.22.4",
+    "@walletconnect/utils": "^2.22.4",
+    "@web3modal/standalone": "^2.4.3",
     "axios": "^1.8.4",
     "buffer": "^6.0.3",
     "crypto-browserify": "^3.12.1",
+    "ethers": "^6.15.0",
     "framer-motion": "^12.10.0",
     "lucide-react": "^0.503.0",
     "react": "^19.1.0",

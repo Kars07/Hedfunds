@@ -36,7 +36,7 @@ const Video: React.FC<{ scrollYProgress: any }> = ({ scrollYProgress }) => {
             Borrow and Lend with Ease
           </h1>
           <h2 className="lg:px-0 px-5">
-           Whether you’re a student, retiree, or business owner, SwiftFund lets you lend in minutes, or borrow securely <br />if you’re an employee of a registered company. With clear terms and the power of Cardano smart <br /> contracts, you’ll enjoy quick approvals and peace of mind backed by real community trust. </h2>
+           Whether you’re a student, retiree, or business owner, HedFunds lets you lend in minutes, or borrow securely <br />if you’re an employee, unemployed or Entrepreneurs. With clear terms and the power of Hedera smart <br /> contracts, you’ll enjoy quick approvals and peace of mind backed by real community trust. </h2>
           <div className="flex justify-center">
             <button
               onClick={handleLearnMore}

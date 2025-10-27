@@ -10,7 +10,7 @@ const Footer: React.FC = () => {
         <div className="-mx-40 w-full justify-start flex h-auto gap-2 text-2xl font-bold text-white mt-12 pl-36 absolute top-[-40px]">
           <img className="w-[50px] h-auto mb-5" src={logo} alt="Logo" />
           <div className="flex justify-center items-center">
-            <h1>SWIFTFUND</h1>
+            <h1>HEDFUNDS</h1>
           </div>
         </div>
 
@@ -55,7 +55,7 @@ const Footer: React.FC = () => {
       <div className="footer-bottom flex justify-between items-center py-4 text-white text-sm gap-[33rem]">
         &copy;2025. All rights reserved.
         <div className="footer-social-icons flex gap-4 ml-40">
-          <a href="https://x.com/SwiftFund_" target="_blank" rel="noopener noreferrer">
+          <a href="https://x.com/SocioSpark_" target="_blank" rel="noopener noreferrer">
             <i className="bx bxl-twitter text-white text-xl cursor-pointer transition-colors duration-300 hover:text-orange-600" />
           </a>
           <a href="https://github.com" target="_blank" rel="noopener noreferrer">

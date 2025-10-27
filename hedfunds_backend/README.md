@@ -1,6 +1,6 @@
-# SwiftFund Backend
+# Hedfunds Backend
 
-This is the backend for the SwiftFund application, built with Node.js, Express, and MongoDB. It provides APIs for user authentication, email verification, password reset, session management, and user balance management.
+This is the backend for the Hedfunds application, built with Node.js, Express, and MongoDB. It provides APIs for user authentication, email verification, password reset, session management, and user balance management.
 
 ---
 
@@ -177,7 +177,7 @@ This is the backend for the SwiftFund application, built with Node.js, Express, 
 1. Clone the repository:
    ```bash
    git clone <repository-url>
-   cd swiftfund_backend
+   cd hedfunds_backend
 
 
 2. Install dependencies:

@@ -1,6 +1,6 @@
-# SwiftFund Frontend
+# Hedfunds Frontend
 
-This is the frontend for the SwiftFund application, a decentralized platform for peer-to-peer lending and borrowing built on the Cardano blockchain. The frontend is developed using **React** , **vite** and **TypeScript** with **TailwindCSS** for styling.
+This is the frontend for the Hedfunds application, a decentralized platform for peer-to-peer lending and borrowing built on the Hedera blockchain. The frontend is developed using **React** , **vite** and **TypeScript** with **TailwindCSS** for styling.
 
 ---
 
@@ -23,20 +23,20 @@ This is the frontend for the SwiftFund application, a decentralized platform for
 - **SVG Animations**: Dynamic SVG animations for visual appeal.
 
 ### 4. **Blockchain Integration**
-- **Smart Contracts**: Loan requests and repayments are handled securely using Cardano smart contracts.
+- **Smart Contracts**: Loan requests and repayments are handled securely using Hedera smart contracts.
 - **Transparency**: All transactions are immutable and auditable on the blockchain.
 
 ### 5. **Informational Pages**
-- **About**: Learn about the team and the mission of SwiftFund.
+- **About**: Learn about the team and the mission of Hedfunds.
 - **Docs**: Comprehensive documentation for users and developers.
-- **Contact**: Reach out to the SwiftFund team for support or inquiries.
+- **Contact**: Reach out to the Hedfunds team for support or inquiries.
 
 ---
 
 ## Project Structure
 
 ```bash
-swiftfund_frontend/
+hedfunds_frontend/
 ├── public/                          # Static assets (images, videos, fonts)
 │   ├── index.html                   # Main HTML file
 │   ├── logo.png                     # Logo file (example)
@@ -84,7 +84,7 @@ swiftfund_frontend/
 1. Clone the repository:
    ```bash
    git clone <repository-url>
-   cd swiftfund_frontend
+   cd hedfunds_frontend
 
 
 2.  Install dependencies:
