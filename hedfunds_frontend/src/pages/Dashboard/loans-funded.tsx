@@ -44,9 +44,14 @@ const LoansFunded: React.FC = () => {
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
+    const [initialized, setInitialized] = useState<boolean>(false);
 
     useEffect(() => {
-        if (connection && connection.address) {
+        setInitialized(true);
+    }, []);
+
+    useEffect(() => {
+        if (connection && connection.address && initialized) {
             loadFundedLoans();
             
             // Set up auto-refresh every 60 seconds
@@ -56,7 +61,7 @@ const LoansFunded: React.FC = () => {
             
             return () => clearInterval(intervalId);
         }
-    }, [connection]);
+    }, [connection, initialized]);
 
     async function loadFundedLoans(): Promise<void> {
         try {
@@ -212,6 +217,16 @@ const LoansFunded: React.FC = () => {
     const repaidLoans = fundedLoans.filter(loan => loan.status === LoanStatus.REPAID);
     const defaultedLoans = fundedLoans.filter(loan => loan.status === LoanStatus.DEFAULTED);
     const overdueLoans = activeLoans.filter(loan => loan.isOverdue);
+
+    // If we're still initializing, show a loading indicator
+    if (!initialized) {
+        return (
+            <div className="bg-white rounded-lg shadow-lg p-6 text-center">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mb-3"></div>
+                <p>Initializing application...</p>
+            </div>
+        );
+    }
 
     return (
         <div className="min-h-screen mt-3 text-gray-900 relative overflow-hidden">
@@ -457,7 +472,7 @@ const LoansFunded: React.FC = () => {
                 </div>
 
                 {/* Repaid Loans Section */}
-                <div className="bg-white/60 backdrop-blur-xl border border-gray-200 rounded-3xl p-8 shadow-2xl">
+                <div className="mb-8 bg-white/60 backdrop-blur-xl border border-gray-200 rounded-3xl p-8 shadow-2xl">
                     <div className="flex items-center space-x-4 mb-8">
                         <div className="w-1 h-8 bg-gradient-to-b from-green-500 to-green-600 rounded-full"></div>
                         <h2 className="text-3xl font-bold text-gray-800">Repaid Loans</h2>
@@ -588,7 +603,7 @@ const LoansFunded: React.FC = () => {
 
                 {/* Defaulted Loans Section (if any) */}
                 {defaultedLoans.length > 0 && (
-                    <div className="mt-8 bg-white/60 backdrop-blur-xl border border-gray-200 rounded-3xl p-8 shadow-2xl">
+                    <div className="bg-white/60 backdrop-blur-xl border border-gray-200 rounded-3xl p-8 shadow-2xl">
                         <div className="flex items-center space-x-4 mb-8">
                             <div className="w-1 h-8 bg-gradient-to-b from-gray-500 to-gray-600 rounded-full"></div>
                             <h2 className="text-3xl font-bold text-gray-800">Defaulted Loans</h2>
