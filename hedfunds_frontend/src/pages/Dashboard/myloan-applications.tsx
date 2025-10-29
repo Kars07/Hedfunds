@@ -1,19 +1,21 @@
-import React, { useState, useEffect } from "react";
-import { useWallet } from "./Dashboard";
-import { ethers } from "ethers";
+import React, { useState, useEffect, useCallback } from "react";
+import SignClient from "@walletconnect/sign-client";
+import { Web3Modal } from "@web3modal/standalone";
+import { getSdkError } from "@walletconnect/utils";
+import { SessionTypes } from "@walletconnect/types";
+import {
+  ContractCallQuery,
+  ContractFunctionParameters,
+  AccountId,
+  Client,
+} from "@hashgraph/sdk";
 
-// Contract address - replace with your deployed contract address
-const LOAN_CONTRACT_ADDRESS = "0xYourContractAddressHere";
+// ==================== CONFIGURATION ====================
+const WALLETCONNECT_PROJECT_ID = "cb09000e29ac8eb293421c4501e4ecb9";
+const CONTRACT_ID = "0.0.7091233";
+const HEDERA_NETWORK = "testnet";
 
-// Contract ABI for the functions we need
-const LOAN_CONTRACT_ABI = [
-    "function loanCounter() view returns (uint256)",
-    "function loans(uint256) view returns (address borrower, address lender, uint256 loanAmount, uint256 interest, uint256 deadline, uint8 status, uint256 createdAt)",
-    "function getLoan(uint256 _loanId) view returns (tuple(address borrower, address lender, uint256 loanAmount, uint256 interest, uint256 deadline, uint8 status, uint256 createdAt))",
-    "function isLoanActive(uint256 _loanId) view returns (bool)",
-    "function calculateDebt(uint256 _loanId) view returns (uint256)"
-];
-
+// ==================== TYPE DEFINITIONS ====================
 // Loan status enum matching the smart contract
 enum LoanStatus {
     REQUESTED = 0,
@@ -26,95 +28,281 @@ type LoanData = {
     loanId: number;
     borrower: string;
     lender: string;
-    loanAmount: bigint;
-    interest: bigint;
-    deadline: bigint;
+    loanAmount: string;
+    interest: string;
+    deadline: number;
     status: LoanStatus;
-    createdAt: bigint;
+    createdAt: number;
     statusLabel: "active" | "funded" | "repaid" | "defaulted" | "expired";
 };
 
+// ==================== MAIN COMPONENT ====================
 const MyLoanApplications: React.FC = () => {
-    const { connection } = useWallet();
+    // WalletConnect State
+    const [signClient, setSignClient] = useState<InstanceType<typeof SignClient> | null>(null);
+    const [session, setSession] = useState<SessionTypes.Struct | null>(null);
+    const [accountId, setAccountId] = useState<string | null>(null);
+    const [hederaClient, setHederaClient] = useState<Client | null>(null);
+    const [isWalletConnecting, setIsWalletConnecting] = useState(false);
+
+    // Loan Data State
     const [myLoanRequests, setMyLoanRequests] = useState<LoanData[]>([]);
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
 
+    // ==================== HEDERA CLIENT INITIALIZATION ====================
     useEffect(() => {
-        if (connection) {
-            fetchMyLoanRequests();
-        }
-    }, [connection]);
+        const client = Client.forTestnet();
+        setHederaClient(client);
+    }, []);
 
-    async function fetchMyLoanRequests(): Promise<void> {
+    // ==================== WALLETCONNECT INITIALIZATION ====================
+    const initializeWalletConnect = useCallback(async () => {
+        try {
+            const client = await SignClient.init({
+                projectId: WALLETCONNECT_PROJECT_ID,
+                metadata: {
+                    name: "P2P Loan DApp",
+                    description: "Peer-to-peer lending platform on Hedera",
+                    url: window.location.origin,
+                    icons: ["https://walletconnect.com/walletconnect-logo.png"],
+                },
+                relayUrl: "wss://relay.walletconnect.com",
+            });
+            setSignClient(client);
+
+            client.on("session_delete", () => {
+                console.log("Session deleted");
+                setSession(null);
+                setAccountId(null);
+            });
+
+            const sessions = client.session.getAll();
+            if (sessions.length > 0) {
+                const lastSession = sessions[sessions.length - 1];
+                setSession(lastSession);
+                const accounts = lastSession.namespaces.hedera?.accounts || [];
+                if (accounts.length > 0) {
+                    const accountIdFromSession = accounts[0].split(":")[2];
+                    setAccountId(accountIdFromSession);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to initialize WalletConnect:", error);
+            setError("Failed to initialize WalletConnect. Please refresh the page.");
+        }
+    }, []);
+
+    useEffect(() => {
+        initializeWalletConnect();
+    }, [initializeWalletConnect]);
+
+    // ==================== WALLET CONNECTION ====================
+    const connectWalletConnect = async () => {
+        if (!signClient) {
+            setError("WalletConnect not initialized. Please wait or refresh the page.");
+            return;
+        }
+
+        try {
+            setIsWalletConnecting(true);
+            setError(null);
+
+            const { uri, approval } = await signClient.connect({
+                requiredNamespaces: {
+                    hedera: {
+                        methods: [
+                            "hedera_signAndExecuteTransaction",
+                            "hedera_executeTransaction",
+                            "hedera_signTransaction"
+                        ],
+                        chains: [`hedera:${HEDERA_NETWORK}`],
+                        events: ["chainChanged", "accountsChanged"],
+                    },
+                },
+            });
+
+            if (uri) {
+                const web3Modal = new Web3Modal({
+                    projectId: WALLETCONNECT_PROJECT_ID,
+                    walletConnectVersion: 2,
+                });
+                await web3Modal.openModal({ uri });
+
+                const approvalPromise = approval();
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error("Connection timeout")), 120000)
+                );
+
+                const newSession = await Promise.race([approvalPromise, timeoutPromise]) as SessionTypes.Struct;
+
+                web3Modal.closeModal();
+                setSession(newSession);
+
+                const accounts = newSession.namespaces.hedera?.accounts || [];
+                if (accounts.length === 0) {
+                    throw new Error("No accounts found in session");
+                }
+
+                const newAccountId = accounts[0].split(":")[2];
+                if (!newAccountId.match(/^\d+\.\d+\.\d+$/)) {
+                    throw new Error("Invalid Hedera account ID format");
+                }
+
+                setAccountId(newAccountId);
+                console.log("Successfully connected to account:", newAccountId);
+            }
+        } catch (error) {
+            console.error("Failed to connect wallet:", error);
+            const errorMessage = error instanceof Error ? error.message : "Failed to connect wallet";
+            setError(errorMessage);
+        } finally {
+            setIsWalletConnecting(false);
+        }
+    };
+
+    // ==================== WALLET DISCONNECTION ====================
+    const disconnectWallet = async () => {
+        if (signClient && session) {
+            try {
+                await signClient.disconnect({
+                    topic: session.topic,
+                    reason: getSdkError("USER_DISCONNECTED"),
+                });
+            } catch (error) {
+                console.error("Error disconnecting:", error);
+            }
+        }
+        setSession(null);
+        setAccountId(null);
+        setMyLoanRequests([]);
+    };
+
+    // ==================== FETCH MY LOAN REQUESTS ====================
+    const fetchMyLoanRequests = useCallback(async (): Promise<void> => {
+        if (!accountId) return;
+
         try {
             setIsLoading(true);
             setError(null);
 
-            if (!connection || !connection.address) {
-                setError("Wallet not connected");
-                return;
+            console.log("Fetching loans for account:", accountId);
+
+            // Fetch LoanRequested events from Hedera Mirror Node
+            const eventSignature = '0xf6cc19e46a340ab5888d736bfc79aef72ae92d12d7b76319d72b0abc170868e6';
+            
+            const nowSeconds = Math.floor(Date.now() / 1000);
+            const sixDaysAgoSeconds = nowSeconds - (6 * 24 * 60 * 60);
+            
+            const startTime = `${sixDaysAgoSeconds}.000000000`;
+            const endTime = `${nowSeconds}.999999999`;
+            
+            const mirrorNodeUrl = `https://testnet.mirrornode.hedera.com/api/v1/contracts/${CONTRACT_ID}/results/logs?topic0=${eventSignature}&timestamp=gte:${startTime}&timestamp=lte:${endTime}&order=desc&limit=100`;
+            
+            console.log('Fetching loan events from:', mirrorNodeUrl);
+
+            const eventsResponse = await fetch(mirrorNodeUrl);
+
+            if (!eventsResponse.ok) {
+                const errorText = await eventsResponse.text();
+                console.error('Mirror node error:', errorText);
+                throw new Error(`Failed to fetch loan events: ${eventsResponse.status}`);
             }
 
-            // Create provider and contract instance
-            const provider = new ethers.BrowserProvider(window.ethereum);
-            const contract = new ethers.Contract(
-                LOAN_CONTRACT_ADDRESS,
-                LOAN_CONTRACT_ABI,
-                provider
-            );
-
-            // Get total number of loans
-            const loanCounter = await contract.loanCounter();
-            const totalLoans = Number(loanCounter);
-
-            console.log("Total loans:", totalLoans);
+            const eventsData = await eventsResponse.json();
+            console.log('LoanRequested events data:', eventsData);
 
             const loans: LoanData[] = [];
-            const userAddress = connection.address.toLowerCase();
-            const currentTime = Math.floor(Date.now() / 1000); // Current time in seconds
+            const currentTime = Math.floor(Date.now() / 1000);
 
-            // Fetch all loans and filter by user's address
-            for (let i = 1; i <= totalLoans; i++) {
-                try {
-                    const loan = await contract.getLoan(i);
-                    
-                    // Check if this loan belongs to the current user
-                    if (loan.borrower.toLowerCase() === userAddress) {
-                        // Determine display status
-                        let statusLabel: "active" | "funded" | "repaid" | "defaulted" | "expired";
-                        
-                        if (loan.status === LoanStatus.REQUESTED) {
-                            // Check if loan is expired
-                            if (Number(loan.deadline) < currentTime) {
-                                statusLabel = "expired";
-                            } else {
-                                statusLabel = "active";
+            // Convert accountId to compare with blockchain data
+            const accountIdParts = accountId.split('.');
+            const accountNum = accountIdParts[2];
+            const myAccountIdLower = accountId.toLowerCase();
+
+            if (eventsData.logs && eventsData.logs.length > 0) {
+                for (const log of eventsData.logs) {
+                    try {
+                        const topics = log.topics || [];
+                        const data = log.data;
+
+                        if (topics.length >= 3 && data) {
+                            const loanIdHex = topics[1];
+                            const loanId = parseInt(loanIdHex, 16);
+
+                            const borrowerHex = topics[2];
+                            const borrowerAccountId = hexToAccountId(borrowerHex);
+
+                            console.log(`Checking loan ${loanId}: borrower=${borrowerAccountId}, myAccount=${accountId}`);
+
+                            // Only process loans where I am the borrower
+                            if (borrowerAccountId.toLowerCase() !== myAccountIdLower) {
+                                console.log(`Skipping loan ${loanId}: not my loan`);
+                                continue;
                             }
-                        } else if (loan.status === LoanStatus.FUNDED) {
-                            statusLabel = "funded";
-                        } else if (loan.status === LoanStatus.REPAID) {
-                            statusLabel = "repaid";
-                        } else if (loan.status === LoanStatus.DEFAULTED) {
-                            statusLabel = "defaulted";
-                        } else {
-                            statusLabel = "active";
-                        }
 
-                        loans.push({
-                            loanId: i,
-                            borrower: loan.borrower,
-                            lender: loan.lender,
-                            loanAmount: loan.loanAmount,
-                            interest: loan.interest,
-                            deadline: loan.deadline,
-                            status: loan.status,
-                            createdAt: loan.createdAt,
-                            statusLabel
-                        });
+                            console.log(`Processing my loan ${loanId}`);
+
+                            let dataHex = data;
+                            if (!data.startsWith('0x')) {
+                                try {
+                                    const decoded = atob(data);
+                                    dataHex = '0x' + Array.from(decoded).map(c => c.charCodeAt(0).toString(16).padStart(2, '0')).join('');
+                                } catch (e) {
+                                    console.warn('Failed to decode base64 data:', e);
+                                }
+                            }
+                            
+                            dataHex = dataHex.startsWith('0x') ? dataHex.substring(2) : dataHex;
+                            
+                            const loanAmountHex = dataHex.substring(0, 64);
+                            const interestHex = dataHex.substring(64, 128);
+                            const deadlineHex = dataHex.substring(128, 192);
+
+                            const loanAmount = loanAmountHex ? BigInt('0x' + loanAmountHex).toString() : '0';
+                            const interest = interestHex ? BigInt('0x' + interestHex).toString() : '0';
+                            const deadline = deadlineHex ? parseInt(deadlineHex, 16) : 0;
+
+                            // Get full loan details from contract to check current status
+                            const loanDetails = await getLoanDetails(loanId);
+                            
+                            if (loanDetails) {
+                                let statusLabel: "active" | "funded" | "repaid" | "defaulted" | "expired";
+                                
+                                if (loanDetails.status === LoanStatus.REQUESTED) {
+                                    if (deadline < currentTime) {
+                                        statusLabel = "expired";
+                                    } else {
+                                        statusLabel = "active";
+                                    }
+                                } else if (loanDetails.status === LoanStatus.FUNDED) {
+                                    statusLabel = "funded";
+                                } else if (loanDetails.status === LoanStatus.REPAID) {
+                                    statusLabel = "repaid";
+                                } else if (loanDetails.status === LoanStatus.DEFAULTED) {
+                                    statusLabel = "defaulted";
+                                } else {
+                                    statusLabel = "active";
+                                }
+
+                                loans.push({
+                                    loanId,
+                                    borrower: borrowerAccountId,
+                                    lender: loanDetails.lender,
+                                    loanAmount,
+                                    interest,
+                                    deadline,
+                                    status: loanDetails.status,
+                                    createdAt: log.timestamp ? Math.floor(new Date(log.timestamp).getTime() / 1000) : currentTime,
+                                    statusLabel
+                                });
+
+                                console.log(`Added loan ${loanId} with status: ${statusLabel}`);
+                            }
+                        }
+                    } catch (eventError) {
+                        console.error('Error processing loan event:', eventError, log);
                     }
-                } catch (err) {
-                    console.error(`Error fetching loan ${i}:`, err);
                 }
             }
 
@@ -130,37 +318,121 @@ const MyLoanApplications: React.FC = () => {
                 const statusDiff = statusOrder[a.statusLabel] - statusOrder[b.statusLabel];
                 if (statusDiff !== 0) return statusDiff;
                 
-                // If same status, sort by deadline (most urgent first)
-                return Number(a.deadline) - Number(b.deadline);
+                return a.deadline - b.deadline;
             });
 
+            console.log(`Found ${loans.length} loans for account ${accountId}`);
             setMyLoanRequests(loans);
+
         } catch (error) {
             console.error("Error fetching loan requests:", error);
             setError("Failed to fetch your loan requests. Please try again.");
         } finally {
             setIsLoading(false);
         }
-    }
+    }, [accountId]);
+
+    // Fetch loans when account connects
+    useEffect(() => {
+        if (accountId) {
+            fetchMyLoanRequests();
+        }
+    }, [accountId, fetchMyLoanRequests]);
+
+    // ==================== HELPER FUNCTIONS ====================
+    const hexToAccountId = (hex: string): string => {
+        try {
+            let cleanHex = hex.startsWith('0x') ? hex.substring(2) : hex;
+            
+            if (cleanHex.length % 2 !== 0) {
+                cleanHex = '0' + cleanHex;
+            }
+            
+            const trimmedHex = cleanHex.replace(/^0+/, '') || '0';
+            const bigIntValue = BigInt('0x' + trimmedHex);
+            const accountNum = bigIntValue.toString(10);
+            
+            return `0.0.${accountNum}`;
+        } catch (error) {
+            console.error('Error converting hex to account ID:', hex, error);
+            return '0.0.0';
+        }
+    };
+
+    const getLoanDetails = async (loanId: number): Promise<{status: LoanStatus, lender: string} | null> => {
+        try {
+            const functionSelector = '504006ca';
+            const paddedLoanId = loanId.toString(16).padStart(64, '0');
+            const callData = '0x' + functionSelector + paddedLoanId;
+
+            const contractIdParts = CONTRACT_ID.split('.');
+            const contractNum = parseInt(contractIdParts[2]);
+            const contractHex = '0x' + contractNum.toString(16).padStart(40, '0');
+
+            const requestBody = {
+                data: callData,
+                to: contractHex,
+                estimate: false,
+                gas: 100000
+            };
+
+            const response = await fetch(
+                'https://testnet.mirrornode.hedera.com/api/v1/contracts/call',
+                {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(requestBody)
+                }
+            );
+
+            if (!response.ok) {
+                console.error(`Failed to get details for loan ${loanId}`);
+                return null;
+            }
+
+            const result = await response.json();
+            
+            if (result.result) {
+                const resultHex = result.result.startsWith('0x') ? result.result.substring(2) : result.result;
+                
+                // Parse lender address (bytes 32-63, 64 hex chars)
+                const lenderHex = resultHex.substring(64, 128);
+                const lenderAccountId = hexToAccountId('0x' + lenderHex);
+                
+                // Parse status (bytes 160-191, 64 hex chars)
+                const statusHex = resultHex.substring(320, 384);
+                const status = parseInt(statusHex, 16) as LoanStatus;
+                
+                console.log(`Loan ${loanId} details: status=${status}, lender=${lenderAccountId}`);
+                
+                return { status, lender: lenderAccountId };
+            }
+
+            return null;
+        } catch (error) {
+            console.error(`Error getting loan details for ${loanId}:`, error);
+            return null;
+        }
+    };
 
     function refreshLoanData(): void {
-        if (connection) {
+        if (accountId) {
             fetchMyLoanRequests();
         }
     }
 
-    function formatDate(timestamp: bigint): string {
-        return new Date(Number(timestamp) * 1000).toLocaleString();
+    function formatDate(timestamp: number): string {
+        return new Date(timestamp * 1000).toLocaleString();
     }
 
-    function weiToHbar(wei: bigint): string {
-        return ethers.formatEther(wei);
+    function formatAmount(amount: string): string {
+        const amountNum = parseInt(amount);
+        return amountNum.toLocaleString();
     }
 
-    function getDaysRemaining(deadline: bigint): number {
+    function getDaysRemaining(deadline: number): number {
         const now = Math.floor(Date.now() / 1000);
-        const deadlineTime = Number(deadline);
-        const diffSeconds = deadlineTime - now;
+        const diffSeconds = deadline - now;
         return Math.max(0, Math.ceil(diffSeconds / (60 * 60 * 24)));
     }
 
@@ -204,6 +476,7 @@ const MyLoanApplications: React.FC = () => {
         }
     }
 
+    // ==================== RENDER ====================
     return (
         <div className="min-h-screen text-gray-900 relative overflow-hidden">
             {/* Animated Background Elements */}
@@ -224,10 +497,16 @@ const MyLoanApplications: React.FC = () => {
                     </div>
                     <div className="absolute md:block right-0 top-0">
                         {/* Wallet Status */}
-                        {!connection ? (
+                        {!accountId ? (
                             <div className="bg-white/80 backdrop-blur-xl border border-gray-200 rounded-2xl p-6 shadow-2xl">
-                                <h2 className="text-xl font-semibold mb-4 text-orange-600">Wallet connection required</h2>
-                                <p className="text-gray-600">Please connect your wallet from the sidebar to view your loan applications.</p>
+                                <h2 className="text-xl font-semibold mb-4 text-orange-600">Connect Wallet</h2>
+                                <button
+                                    onClick={connectWalletConnect}
+                                    disabled={isWalletConnecting || !signClient}
+                                    className="bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white px-6 py-3 rounded-xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg disabled:opacity-50"
+                                >
+                                    {isWalletConnecting ? "Connecting..." : "Connect Wallet"}
+                                </button>
                             </div>
                         ) : (
                             <div className="bg-orange-50 border border-orange-200 rounded-2xl md:p-4 p-2 shadow-2xl">
@@ -236,9 +515,9 @@ const MyLoanApplications: React.FC = () => {
                                     <div>
                                         <p className="text-green-600 text-[13px] font-semibold">Wallet Connected</p>
                                         <p className="text-gray-600 text-[11px]">
-                                            {connection.address.substring(0, 12)}...{connection.address.substring(connection.address.length - 12)}
+                                            {accountId.substring(0, 12)}...{accountId.substring(accountId.length - 6)}
                                         </p>
-                                        <div className="mt-2">
+                                        <div className="mt-2 flex items-center space-x-2">
                                             <button 
                                                 onClick={refreshLoanData}
                                                 className="text-green-600 hover:text-green-700 cursor-pointer text-sm font-medium flex items-center"
@@ -246,7 +525,13 @@ const MyLoanApplications: React.FC = () => {
                                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                                 </svg>
-                                                Refresh Loan Data
+                                                Refresh
+                                            </button>
+                                            <button
+                                                onClick={disconnectWallet}
+                                                className="text-xs text-red-600 hover:text-red-700"
+                                            >
+                                                Disconnect
                                             </button>
                                         </div>
                                     </div>
@@ -282,7 +567,7 @@ const MyLoanApplications: React.FC = () => {
                             </div>
                             <p className="text-gray-600 text-lg">Loading your loan requests...</p>
                         </div>
-                    ) : !connection ? (
+                    ) : !accountId ? (
                         <div className="text-center py-16 bg-gray-100/60 rounded-2xl">
                             <div className="w-20 h-20 bg-gradient-to-r from-orange-500 to-orange-600 rounded-full mx-auto mb-6 flex items-center justify-center">
                                 <span className="text-3xl">🔗</span>
@@ -337,13 +622,13 @@ const MyLoanApplications: React.FC = () => {
                                                     <div>
                                                         <p className="text-gray-500 text-sm mb-1">Loan Amount</p>
                                                         <p className="text-2xl font-bold text-orange-600">
-                                                            {weiToHbar(loan.loanAmount)} <span className="text-sm text-gray-500">HBAR</span>
+                                                            {formatAmount(loan.loanAmount)} <span className="text-sm text-gray-500">HBAR</span>
                                                         </p>
                                                     </div>
                                                     <div>
                                                         <p className="text-gray-500 text-sm mb-1">Interest</p>
                                                         <p className="text-xl font-semibold text-yellow-600">
-                                                            {weiToHbar(loan.interest)} <span className="text-sm text-gray-500">HBAR</span>
+                                                            {formatAmount(loan.interest)} <span className="text-sm text-gray-500">HBAR</span>
                                                         </p>
                                                     </div>
                                                 </div>
@@ -373,7 +658,7 @@ const MyLoanApplications: React.FC = () => {
                                                 <div className="text-right">
                                                     <p className="text-gray-500 text-sm mb-2">Contract</p>
                                                     <a 
-                                                        href={`https://hashscan.io/testnet/contract/${LOAN_CONTRACT_ADDRESS}`}
+                                                        href={`https://hashscan.io/testnet/contract/${CONTRACT_ID}`}
                                                         target="_blank" 
                                                         rel="noopener noreferrer"
                                                         className="inline-flex items-center bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white px-4 py-2 rounded-xl text-sm transition-all duration-300 transform hover:scale-105 hover:shadow-lg"
@@ -394,7 +679,7 @@ const MyLoanApplications: React.FC = () => {
                 </div>
                 
                 {/* Summary Stats */}
-                {connection && myLoanRequests.length > 0 && (
+                {accountId && myLoanRequests.length > 0 && (
                     <div className="bg-white/60 backdrop-blur-xl border border-gray-200 rounded-3xl p-8 shadow-2xl">
                         <div className="flex items-center space-x-4 mb-8">
                             <div className="w-1 h-8 bg-gradient-to-b from-orange-500 to-orange-600 rounded-full"></div>
