@@ -90,7 +90,7 @@ const KeyFeatures: React.FC = () => {
           <h1 className="text-black md:px-0 px-10 font-medium text-3xl md:text-3xl pt-0 md:pt-10 pb-5">📤 Blockchain Submissions</h1>
           <h2 className='md:text-lg text-xl px-2'>
             Loan requests are submitted to the Hedera<br />
-            blockchain, ensuring transparency, immutability, <br />
+            HashGraph, ensuring transparency, immutability, <br />
             and auditability of all actions.
           </h2>
         </div>
