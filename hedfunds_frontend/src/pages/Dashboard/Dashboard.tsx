@@ -27,13 +27,6 @@ interface WalletContextType {
   isConnecting: boolean;
   connectWallet: (wallet: Wallet) => Promise<void>;
   disconnectWallet: () => void;
-  // civilServantStatus: {
-  //   verified: boolean;
-  //   data: any;
-  //   loading: boolean;
-  // };
-  // submitCivilServantApplication: (data: any) => Promise<{ success: boolean; message: string }>;
-  // checkCivilServantStatus: (walletAddress: string) => Promise<void>;
 }
 
 
@@ -46,8 +39,6 @@ export const useWallet = () => {
   }
   return context;
 };
-
-// const civil_service_api =  "http://localhost:9000/civil_servants.php";
 
 // Welcome Modal Component
 const WelcomeModal: React.FC<{ 
@@ -159,7 +150,7 @@ const Dashboard: React.FC = () => {
   const [showBorrowerActions, setShowBorrowerActions] = useState<boolean>(false);
   const [showLenderActions, setShowLenderActions] = useState<boolean>(false);
   const [showWelcomeModal, setShowWelcomeModal] = useState<boolean>(false);
-  const [showKYCModal, setShowKYCModal] = useState<boolean>(false); // New state for KYC modal
+  const [showKYCModal, setShowKYCModal] = useState<boolean>(false);
   const navigate = useNavigate();
 
   // Wallet state
@@ -174,17 +165,6 @@ const Dashboard: React.FC = () => {
   const [isMobile, setIsMobile] = useState(
     typeof window !== "undefined" && window.innerWidth < 768
   );
-  // Add these state variables after the existing wallet states
-  // const [civilServantStatus, setCivilServantStatus] = useState<{
-  //   verified: boolean;
-  //   data: any;
-  //   loading: boolean;
-  // }>({
-  //   verified: false,
-  //   data: null,
-  //   loading: false
-  // });
-  // const [statusError, setStatusError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchExchangeRate = async () => {
@@ -204,26 +184,26 @@ const Dashboard: React.FC = () => {
   }, []);
 
   useEffect(() => {
-  const storedUser = localStorage.getItem("user");
-  if (storedUser) {
-    try {
-      const parsedUser = JSON.parse(storedUser);
-      setUserName(parsedUser.fullname || "User");
-      setUserEmail(parsedUser.email || "user@example.com");
-      
-      // Check if welcome modal has been shown before
-      const hasSeenWelcome = localStorage.getItem("hasSeenWelcomeModal");
-      if (!hasSeenWelcome) {
-        setShowWelcomeModal(true);
+    const storedUser = localStorage.getItem("user");
+    if (storedUser) {
+      try {
+        const parsedUser = JSON.parse(storedUser);
+        setUserName(parsedUser.fullname || "User");
+        setUserEmail(parsedUser.email || "user@example.com");
+        
+        // Check if welcome modal has been shown before
+        const hasSeenWelcome = localStorage.getItem("hasSeenWelcomeModal");
+        if (!hasSeenWelcome) {
+          setShowWelcomeModal(true);
+        }
+      } catch (error) {
+        console.error("Failed to parse stored user:", error);
+        navigate("/login");
       }
-    } catch (error) {
-      console.error("Failed to parse stored user:", error);
+    } else {
       navigate("/login");
     }
-  } else {
-    navigate("/login");
-  }
-}, [navigate]);
+  }, [navigate]);
 
   // Load available wallets
   useEffect(() => {
@@ -283,32 +263,6 @@ const Dashboard: React.FC = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  // Add this useEffect after the existing wallet-related useEffects
-// useEffect(() => {
-//   let timeoutId: ReturnType<typeof setTimeout>;
-  
-//   if (connection?.address) {
-//     // Debounce the status check to prevent rapid successive calls
-//     timeoutId = setTimeout(() => {
-//       checkCivilServantStatus(connection.address);
-//     }, 500); // 500ms delay
-//   } else {
-//     // Reset civil servant status when wallet disconnects
-//     setCivilServantStatus({
-//       verified: false,
-//       data: null,
-//       loading: false
-//     });
-//   }
-
-//   // Cleanup timeout on dependency change
-//   return () => {
-//     if (timeoutId) {
-//       clearTimeout(timeoutId);
-//     }
-//   };
-// }, [connection?.address]);
-
   const handleLogout = async () => {
     disconnectWallet();
     
@@ -353,17 +307,17 @@ const Dashboard: React.FC = () => {
 
   // Handle KYC proceed button
   const handleProceedKYC = () => {
-  setShowWelcomeModal(false);
-  setShowKYCModal(true);
-  // Mark that user has seen the welcome modal
-  localStorage.setItem("hasSeenWelcomeModal", "true");
-};
+    setShowWelcomeModal(false);
+    setShowKYCModal(true);
+    // Mark that user has seen the welcome modal
+    localStorage.setItem("hasSeenWelcomeModal", "true");
+  };
 
   // Handle closing welcome modal
   const handleCloseWelcomeModal = () => {
-  setShowWelcomeModal(false);
-  localStorage.setItem("hasSeenWelcomeModal", "true");
-};
+    setShowWelcomeModal(false);
+    localStorage.setItem("hasSeenWelcomeModal", "true");
+  };
  
   // Handle KYC completion
   const handleKYCComplete = () => {
@@ -421,146 +375,18 @@ const Dashboard: React.FC = () => {
     localStorage.removeItem("connected_wallet");
   };
 
-//   const checkCivilServantStatus = useCallback(async (walletAddress: string) => {
-//   if (civilServantStatus.loading) {
-//     return;
-//   }
-
-//   try {
-//     setStatusError(null); // Clear previous errors
-//     setCivilServantStatus(prev => ({ ...prev, loading: true }));
-    
-//     const response = await fetch(`${civil_service_api}?action=getStatus`, {
-//       method: 'POST',
-//       headers: {
-//         'Content-Type': 'application/json',
-//       },
-//       body: JSON.stringify({ walletAddress })
-//     });
-    
-//     if (!response.ok) {
-//       throw new Error(`HTTP error! status: ${response.status}`);
-//     }
-    
-//     const result = await response.json();
-    
-//     if (result.status === 'success') {
-//       setCivilServantStatus({
-//         verified: result.verified || false,
-//         data: result.civilServant || null,
-//         loading: false
-//       });
-//     } else {
-//       setStatusError(result.message || 'Unknown error occurred');
-//       setCivilServantStatus({
-//         verified: false,
-//         data: null,
-//         loading: false
-//       });
-//     }
-//   } catch (error) {
-//     console.error('Error checking civil servant status:', error);
-//     setStatusError('Failed to check status. Please try again.');
-//     setCivilServantStatus({
-//       verified: false,
-//       data: null,
-//       loading: false
-//     });
-//   }
-// }, [civilServantStatus.loading]);
-
-
-
-// const submitCivilServantApplication = async (applicationData: any) => {
-//   try {
-//     if (!connection?.address) {
-//       throw new Error('No wallet connected');
-//     }
-
-//     console.log('Submitting application data:', applicationData); // Debug log
-
-//     const requestBody = {
-//       action: 'submit', // Include action in the body
-//       ...applicationData,
-//       walletAddress: connection.address
-//     };
-
-//     console.log('Request body:', requestBody); // Debug log
-
-//     const response = await fetch(civil_service_api, {
-//       method: 'POST',
-//       headers: {
-//         'Content-Type': 'application/json',
-//         'Accept': 'application/json',
-//         // Add CORS headers if needed
-//         'Access-Control-Allow-Origin': '*',
-//         'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
-//         'Access-Control-Allow-Headers': 'Content-Type, Authorization'
-//       },
-//       body: JSON.stringify(requestBody)
-//     });
-
-//     console.log('Response status:', response.status); // Debug log
-//     console.log('Response headers:', response.headers); // Debug log
-
-//     // Check if response is ok
-//     if (!response.ok) {
-//       const errorText = await response.text();
-//       console.error('HTTP Error Response:', errorText);
-//       throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-//     }
-
-//     // Try to parse JSON response
-//     let result;
-//     try {
-//       const responseText = await response.text();
-//       console.log('Raw response:', responseText); // Debug log
-//       result = JSON.parse(responseText);
-//     } catch (parseError) {
-//       console.error('Failed to parse JSON response:', parseError);
-//       throw new Error('Invalid JSON response from server');
-//     }
-
-//     console.log('Parsed result:', result); // Debug log
-    
-//     if (result.status === 'success') {
-//       // Refresh the status after successful submission
-//       await checkCivilServantStatus(connection.address);
-//       return { success: true, message: result.message || 'Application submitted successfully' };
-//     } else {
-//       console.error('API Error:', result);
-//       return { success: false, message: result.message || 'Unknown error occurred' };
-//     }
-//   } catch (error) {
-//     console.error('Error submitting civil servant application:', error);
-    
-//     // More detailed error messages
-//     if (error instanceof TypeError && error.message.includes('fetch')) {
-//       return { success: false, message: 'Network error: Unable to connect to server' };
-//     } else if (error instanceof SyntaxError) {
-//       return { success: false, message: 'Server response format error' };
-//     } else {
-//       return { success: false, message: (error instanceof Error ? error.message : 'Failed to submit application') };
-//     }
-//   }
-// };
-
   // Create wallet context value
-// Update the wallet context value to include civil servant functions
-const walletContextValue: WalletContextType = {
-  wallets,
-  connection,
-  isConnecting,
-  connectWallet,
-  disconnectWallet,
-  // civilServantStatus,
-  // submitCivilServantApplication,
-  // checkCivilServantStatus
-};
+  const walletContextValue: WalletContextType = {
+    wallets,
+    connection,
+    isConnecting,
+    connectWallet,
+    disconnectWallet,
+  };
 
-return (
+  return (
     <WalletContext.Provider value={walletContextValue}>
-      <div className="min-h-screen bg-gradient-to-br  from-gray-50 via-orange-50 to-gray-100 text-gray-900 relative overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-orange-50 to-gray-100 text-gray-900 relative overflow-hidden">
 
         {/* Animated Background Elements */}
         <div className="absolute inset-0 opacity-20">
@@ -601,101 +427,12 @@ return (
               <div className="flex items-center md:pt-0 pt-8 space-x-3 mb-8">
                 <img src={logo} alt="HedFunds Logo" className="w-8 h-8" />
                 <div className="text-xl text-black font-bold">
-                  <span >DASHBOARD</span>
+                  <span>DASHBOARD</span>
                 </div>
               </div>
 
-              {/* Wallet Connection Status */}
-              <div className="mb-6 p-4  rounded-xl bg-gradient-to-r from-white/90 to-gray-50/90 backdrop-blur-xl border border-gray-200/50 shadow-sm">
-                <h3 className="text-xs font-semibold text-orange-600 mb-3 flex items-center">
-                  <div className="w-2 h-2 bg-orange-500 rounded-full mr-2 animate-pulse"></div>
-                  Wallet Connection
-                </h3>
-                {connection ? (
-                  <div className="space-y-2">
-                    <div className=" hidden items-center justify-between">
-                      <span className="text-xs text-gray-600 font-mono bg-green-100/60 px-2 py-1.5 rounded-md border border-green-200 flex-1 mr-2 truncate">
-                        {connection.address.substring(0, 8)}...{connection.address.substring(connection.address.length - 8)}
-                      </span>
-                    </div>
-                    <button 
-                      onClick={disconnectWallet}
-                      className="w-full text-xs px-3 py-2 bg-gradient-to-r from-red-50 to-red-100 text-red-700 rounded-md hover:from-red-100 hover:to-red-200 transition-all duration-200 border border-red-200 hover:border-red-300 font-medium"
-                    >
-                      <i className="bx bx-log-out mr-1"></i>
-                      Disconnect
-                    </button>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {!showWalletDropdown ? (
-                      <button
-                        onClick={toggleWalletDropdown}
-                        disabled={isConnecting}
-                        className="w-full text-xs px-3 py-2.5 bg-gradient-to-r from-orange-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 text-white rounded-md transition-all duration-200 flex items-center justify-between disabled:opacity-70 disabled:cursor-not-allowed"
-                      >
-                        <span>{isConnecting ? "Connecting..." : "Connect Wallet"}</span>
-                        <i className="bx bx-chevron-down text-sm"></i>
-                      </button>
-                    ) : (
-                      <div className="space-y-2">
-                        <button
-                          onClick={toggleWalletDropdown}
-                          className="w-full text-xs px-3 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md transition-all duration-200 flex items-center"
-                        >
-                          <i className="bx bx-arrow-back text-sm mr-2"></i>
-                          Back
-                        </button>
-                        
-                        {wallets.length > 0 ? (
-                          <div className="space-y-1">
-                            <p className="text-xs text-gray-500 px-2 py-1">Choose a wallet:</p>
-                            {wallets.map((wallet) => (
-                              <button
-                                key={wallet.name}
-                                onClick={() => {
-                                  connectWallet(wallet);
-                                  toggleWalletDropdown();
-                                }}
-                                className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gradient-to-r hover:from-orange-50 hover:to-orange-100 flex items-center transition-all duration-200 rounded-md border border-gray-200 hover:border-orange-300"
-                              >
-                                {wallet.icon && (
-                                  <img 
-                                    src={wallet.icon} 
-                                    alt={wallet.name} 
-                                    className="w-4 h-4 mr-3 flex-shrink-0" 
-                                  />
-                                )}
-                                <span className="truncate">{wallet.name}</span>
-                                <div className="ml-auto flex-shrink-0">
-                                  <i className="bx bx-chevron-right text-xs text-gray-400"></i>
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="px-3 py-4 text-center border border-gray-200 rounded-md bg-gray-50/50">
-                            <i className="bx bx-wallet text-lg mb-2 block text-gray-400"></i>
-                            <p className="text-xs text-gray-500">No wallets detected</p>
-                            <p className="text-xs text-gray-400 mt-1">Install a wallet extension</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
-                {walletError && (
-                  <div className="mt-3 p-3 bg-red-50/60 border border-red-200 rounded-md">
-                    <div className="flex items-start">
-                      <i className="bx bx-error-circle text-red-500 text-sm mr-2 mt-0.5 flex-shrink-0"></i>
-                      <p className="text-xs text-red-600 flex-1">{walletError}</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-
               {/* Navigation */}
-              <nav className="mt-10 space-y-2">
+              <nav className="mt-6 space-y-2">
                 {/* Home */}
                 <div
                   className="group flex items-center space-x-3 bg-gradient-to-r from-orange-600 to-orange-500 text-white py-4 px-10 rounded-4xl shadow-md hover:shadow-lg transition-all duration-200 cursor-pointer"
@@ -708,7 +445,7 @@ return (
                 {/* Borrower Actions */}
                 <div className="group">
                   <div
-                    className="flex items-center justify-between py-4 px-10 rounded-4xl text-gray-700 hover:text-orange-600  cursor-pointer bg-white/50 backdrop-blur-sm border border-gray-200/50 hover:border-orange-300 hover:bg-gradient-to-r hover:from-orange-50/70 hover:to-orange-100/70 transition-all duration-200"
+                    className="flex items-center justify-between py-4 px-10 rounded-4xl text-gray-700 hover:text-orange-600 cursor-pointer bg-white/50 backdrop-blur-sm border border-gray-200/50 hover:border-orange-300 hover:bg-gradient-to-r hover:from-orange-50/70 hover:to-orange-100/70 transition-all duration-200"
                     onClick={toggleBorrowerActions}
                   >
                     <div className="flex items-center space-x-3">
@@ -763,7 +500,7 @@ return (
                 {/* Lender Actions */}
                 <div className="group">
                   <div
-                    className="flex items-center justify-between py-4 px-10 rounded-4xl text-gray-700 hover:text-orange-600cursor-pointer bg-white/50 backdrop-blur-sm border border-gray-200/50 hover:border-orange-300 hover:bg-gradient-to-r hover:from-orange-50/70 hover:to-orange-100/70 transition-all duration-200"
+                    className="flex items-center justify-between py-4 px-10 rounded-4xl text-gray-700 hover:text-orange-600 cursor-pointer bg-white/50 backdrop-blur-sm border border-gray-200/50 hover:border-orange-300 hover:bg-gradient-to-r hover:from-orange-50/70 hover:to-orange-100/70 transition-all duration-200"
                     onClick={toggleLenderActions}
                   >
                     <div className="flex items-center space-x-3">
@@ -803,7 +540,7 @@ return (
 
                 {/* Profile */}
                 <div
-                  className="group flex items-center space-x-3 py-4 px-10 rounded-4xl text-gray-700 hover:text-orange-600  bg-white/50 backdrop-blur-sm border border-gray-200/50 hover:border-orange-300 hover:bg-gradient-to-r hover:from-orange-50/70 hover:to-orange-100/70 transition-all duration-200 cursor-pointer"
+                  className="group flex items-center space-x-3 py-4 px-10 rounded-4xl text-gray-700 hover:text-orange-600 bg-white/50 backdrop-blur-sm border border-gray-200/50 hover:border-orange-300 hover:bg-gradient-to-r hover:from-orange-50/70 hover:to-orange-100/70 transition-all duration-200 cursor-pointer"
                   onClick={() => handleNavigation("/dashboard/profile")}
                 >
                   <i className="bx bx-user text-lg"></i>

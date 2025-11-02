@@ -1,12 +1,19 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate, Outlet } from "react-router-dom";
 import RepaymentTimelineChart from './RepaymentTimelineChart';
 import default_profile from "../../assets/avatar-default.png";
 import { useWallet } from "./Dashboard";
+import SignClient from "@walletconnect/sign-client";
+import { Web3Modal } from "@web3modal/standalone";
+import { getSdkError } from "@walletconnect/utils";
+import { SessionTypes } from "@walletconnect/types";
+import { Client } from "@hashgraph/sdk";
 
 // ==================== CONFIGURATION ====================
 const CONTRACT_ID = "0.0.7091233";
 const API_BASE_URL = "https://swiftfund-6b61.onrender.com";
+const WALLETCONNECT_PROJECT_ID = "cb09000e29ac8eb293421c4501e4ecb9";
+const HEDERA_NETWORK = "testnet";
 
 // ==================== TYPE DEFINITIONS ====================
 type CreditScoreData = {
@@ -29,6 +36,13 @@ const DefaultDashboardContent: React.FC = () => {
   const navigate = useNavigate();
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // WalletConnect State
+  const [signClient, setSignClient] = useState<InstanceType<typeof SignClient> | null>(null);
+  const [session, setSession] = useState<SessionTypes.Struct | null>(null);
+  const [walletAccountId, setWalletAccountId] = useState<string | null>(null);
+  const [hederaClient, setHederaClient] = useState<Client | null>(null);
+  const [isWalletConnecting, setIsWalletConnecting] = useState(false);
+
   // State
   const [hbarToNgnRate, setHbarToNgnRate] = useState<number | null>(null);
   const [walletBalance, setWalletBalance] = useState<string>("0");
@@ -41,6 +55,132 @@ const DefaultDashboardContent: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [userName, setUserName] = useState<string>("");
   const [showDropdown, setShowDropdown] = useState(false);
+
+  // ==================== HEDERA CLIENT INITIALIZATION ====================
+  useEffect(() => {
+    const client = Client.forTestnet();
+    setHederaClient(client);
+  }, []);
+
+  // ==================== WALLETCONNECT INITIALIZATION ====================
+  const initializeWalletConnect = useCallback(async () => {
+    try {
+      const client = await SignClient.init({
+        projectId: WALLETCONNECT_PROJECT_ID,
+        metadata: {
+          name: "P2P Loan DApp",
+          description: "Peer-to-peer lending platform on Hedera",
+          url: window.location.origin,
+          icons: ["https://walletconnect.com/walletconnect-logo.png"],
+        },
+        relayUrl: "wss://relay.walletconnect.com",
+      });
+      setSignClient(client);
+
+      client.on("session_delete", () => {
+        console.log("Session deleted");
+        setSession(null);
+        setWalletAccountId(null);
+      });
+
+      const sessions = client.session.getAll();
+      if (sessions.length > 0) {
+        const lastSession = sessions[sessions.length - 1];
+        setSession(lastSession);
+        const accounts = lastSession.namespaces.hedera?.accounts || [];
+        if (accounts.length > 0) {
+          const accountIdFromSession = accounts[0].split(":")[2];
+          setWalletAccountId(accountIdFromSession);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to initialize WalletConnect:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    initializeWalletConnect();
+  }, [initializeWalletConnect]);
+
+  // ==================== WALLET CONNECTION ====================
+  const connectWalletConnect = async () => {
+    if (!signClient) {
+      alert("WalletConnect not initialized. Please wait or refresh the page.");
+      return;
+    }
+
+    try {
+      setIsWalletConnecting(true);
+
+      const { uri, approval } = await signClient.connect({
+        requiredNamespaces: {
+          hedera: {
+            methods: [
+              "hedera_signAndExecuteTransaction",
+              "hedera_executeTransaction",
+              "hedera_signTransaction"
+            ],
+            chains: [`hedera:${HEDERA_NETWORK}`],
+            events: ["chainChanged", "accountsChanged"],
+          },
+        },
+      });
+
+      if (uri) {
+        const web3Modal = new Web3Modal({
+          projectId: WALLETCONNECT_PROJECT_ID,
+          walletConnectVersion: 2,
+        });
+        await web3Modal.openModal({ uri });
+
+        const approvalPromise = approval();
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Connection timeout")), 120000)
+        );
+
+        const newSession = await Promise.race([approvalPromise, timeoutPromise]) as SessionTypes.Struct;
+
+        web3Modal.closeModal();
+        setSession(newSession);
+
+        const accounts = newSession.namespaces.hedera?.accounts || [];
+        if (accounts.length === 0) {
+          throw new Error("No accounts found in session");
+        }
+
+        const newAccountId = accounts[0].split(":")[2];
+        if (!newAccountId.match(/^\d+\.\d+\.\d+$/)) {
+          throw new Error("Invalid Hedera account ID format");
+        }
+
+        setWalletAccountId(newAccountId);
+        console.log("Successfully connected to account:", newAccountId);
+      }
+    } catch (error) {
+      console.error("Failed to connect wallet:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to connect wallet";
+      alert(errorMessage);
+    } finally {
+      setIsWalletConnecting(false);
+    }
+  };
+
+  // ==================== WALLET DISCONNECTION ====================
+  const disconnectWallet = async () => {
+    if (signClient && session) {
+      try {
+        await signClient.disconnect({
+          topic: session.topic,
+          reason: getSdkError("USER_DISCONNECTED"),
+        });
+      } catch (error) {
+        console.error("Error disconnecting:", error);
+      }
+    }
+    setSession(null);
+    setWalletAccountId(null);
+    setWalletBalance("0");
+  };
 
   // ==================== FETCH EXCHANGE RATES ====================
   useEffect(() => {
@@ -142,17 +282,16 @@ const DefaultDashboardContent: React.FC = () => {
 
   // ==================== FETCH WALLET BALANCE ====================
   const fetchWalletBalance = async () => {
-    if (!connection?.accountId) return;
+    const accountId = walletAccountId || connection?.accountId;
+    if (!accountId) return;
     
     try {
-      // Query Hedera Mirror Node for account balance
       const response = await fetch(
-        `https://testnet.mirrornode.hedera.com/api/v1/accounts/${connection.accountId}`
+        `https://testnet.mirrornode.hedera.com/api/v1/accounts/${accountId}`
       );
       
       if (response.ok) {
         const data = await response.json();
-        // Balance is in tinybars, convert to HBAR (1 HBAR = 100,000,000 tinybars)
         const balanceInHbar = (parseInt(data.balance.balance) / 100000000).toFixed(2);
         setWalletBalance(balanceInHbar);
       }
@@ -163,11 +302,12 @@ const DefaultDashboardContent: React.FC = () => {
 
   // ==================== FETCH LOAN STATISTICS FROM BLOCKCHAIN ====================
   const fetchLoanStatistics = async () => {
-    if (!connection?.accountId) return;
+    const accountId = walletAccountId || connection?.accountId;
+    if (!accountId) return;
+    
     setIsLoading(true);
     
     try {
-      // Fetch LoanRequested events for total applications
       const eventSignature = '0xf6cc19e46a340ab5888d736bfc79aef72ae92d12d7b76319d72b0abc170868e6';
       
       const nowSeconds = Math.floor(Date.now() / 1000);
@@ -192,7 +332,7 @@ const DefaultDashboardContent: React.FC = () => {
       let userRepaidLoans = 0;
 
       const currentTime = Math.floor(Date.now() / 1000);
-      const myAccountIdLower = connection.accountId.toLowerCase();
+      const myAccountIdLower = accountId.toLowerCase();
 
       if (eventsData.logs && eventsData.logs.length > 0) {
         for (const log of eventsData.logs) {
@@ -201,15 +341,12 @@ const DefaultDashboardContent: React.FC = () => {
             const data = log.data;
 
             if (topics.length >= 3 && data) {
-              // Extract borrower address from topic 2
               const borrowerHex = topics[2];
               const borrowerAccountId = hexToAccountId(borrowerHex);
 
-              // Only count loans for current user
               if (borrowerAccountId.toLowerCase() === myAccountIdLower) {
                 userTotalApplications++;
 
-                // Extract deadline from data to check if still pending
                 let dataHex = data;
                 if (!data.startsWith('0x')) {
                   try {
@@ -224,15 +361,12 @@ const DefaultDashboardContent: React.FC = () => {
                 const deadlineHex = dataHex.substring(128, 192);
                 const deadline = deadlineHex ? parseInt(deadlineHex, 16) : 0;
 
-                // Get loan ID to check status
                 const loanIdHex = topics[1];
                 const loanId = parseInt(loanIdHex, 16);
 
-                // Check loan status from contract
                 const loanDetails = await getLoanStatus(loanId);
                 
                 if (loanDetails) {
-                  // Status: 0 = REQUESTED, 1 = FUNDED, 2 = REPAID, 3 = DEFAULTED
                   if (loanDetails.status === 0 && deadline > currentTime) {
                     userPendingApprovals++;
                   } else if (loanDetails.status === 1) {
@@ -330,12 +464,13 @@ const DefaultDashboardContent: React.FC = () => {
 
   // ==================== FETCH DATA WHEN WALLET CONNECTS ====================
   useEffect(() => {
-    if (connection?.accountId) {
+    const accountId = walletAccountId || connection?.accountId;
+    if (accountId) {
       fetchWalletBalance();
       fetchLoanStatistics();
-      fetchCreditScore(connection.accountId);
+      fetchCreditScore(accountId);
     }
-  }, [connection?.accountId]);
+  }, [walletAccountId, connection?.accountId]);
 
   // ==================== FORMAT UTILITIES ====================
   function hbarToNgn(hbar: string): string {
@@ -364,6 +499,9 @@ const DefaultDashboardContent: React.FC = () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
+
+  // Get the active account ID (prioritize WalletConnect, fallback to context)
+  const activeAccountId = walletAccountId || connection?.accountId;
 
   // ==================== RENDER ====================
   return (
@@ -413,13 +551,13 @@ const DefaultDashboardContent: React.FC = () => {
                   </div>
                   <p className="font-semibold text-gray-800 mb-4">{userName || "User"}</p>
                 
-                  {connection?.accountId && (
+                  {activeAccountId && (
                     <>
                       <div className="h-px bg-gradient-to-r from-gray-300 to-transparent mb-4"></div>
                       <p className="text-sm text-gray-600 mb-2">Hedera Account:</p>
                       <div className="bg-gray-100/60 rounded-xl p-3">
                         <p className="text-xs font-mono text-orange-600 break-all">
-                          {connection.accountId}
+                          {activeAccountId}
                         </p>
                       </div>
                     </>
@@ -478,13 +616,13 @@ const DefaultDashboardContent: React.FC = () => {
                     </div>
                     <p className="font-semibold text-gray-800 mb-4">{userName || "User"}</p>
                   
-                    {connection?.accountId && (
+                    {activeAccountId && (
                       <>
                         <div className="h-px bg-gradient-to-r from-gray-300 to-transparent mb-4"></div>
                         <p className="text-sm text-gray-600 mb-2">Hedera Account:</p>
                         <div className="bg-gray-100/60 rounded-xl p-3">
                           <p className="text-xs font-mono text-orange-600 break-all">
-                            {connection.accountId}
+                            {activeAccountId}
                           </p>
                         </div>
                       </>
@@ -579,18 +717,39 @@ const DefaultDashboardContent: React.FC = () => {
               </div>
             </div>
             
-            {connection && (
-              <div className="bg-white/20 backdrop-blur-sm border border-white/30 hidden md:block rounded-2xl p-4">
+            {activeAccountId ? (
+              <div className="bg-white/20 backdrop-blur-sm border border-white/30 hidden md:flex items-center rounded-2xl p-4">
                 <div className="flex items-center space-x-2">
                   <div className="w-3 h-3 bg-green-400 rounded-full animate-pulse"></div>
                   <div>
                     <p className="text-white font-semibold">Wallet Connected</p>
                     <p className="text-orange-100 text-sm font-mono">
-                      {connection.accountId}
+                      {activeAccountId}
                     </p>
                   </div>
                 </div>
+                <button
+                  onClick={disconnectWallet}
+                  className="ml-4 bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-lg text-sm transition-all duration-300"
+                >
+                  Disconnect
+                </button>
               </div>
+            ) : (
+              <button
+                onClick={connectWalletConnect}
+                disabled={isWalletConnecting || !signClient}
+                className="bg-white/20 backdrop-blur-sm border border-white/30 hover:bg-white/30 text-white px-6 py-3 rounded-2xl transition-all duration-300 transform hover:scale-105 hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed font-semibold"
+              >
+                {isWalletConnecting ? (
+                  <div className="flex items-center space-x-2">
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                    <span>Connecting...</span>
+                  </div>
+                ) : (
+                  "Connect Wallet"
+                )}
+              </button>
             )}
           </div>
           
@@ -598,14 +757,14 @@ const DefaultDashboardContent: React.FC = () => {
             <div className="bg-white/15 backdrop-blur-sm border border-white/20 rounded-2xl p-6">
               <p className="text-orange-100 text-sm mb-2">Total Balance (₦)</p> 
               <h3 className="text-2xl md:text-3xl font-bold text-white">
-                ₦ {connection ? hbarToNgn(walletBalance) : "0"}
+                ₦ {activeAccountId ? hbarToNgn(walletBalance) : "0"}
               </h3>
             </div>
 
             <div className="bg-white/15 backdrop-blur-sm border border-white/20 rounded-2xl p-6">
               <p className="text-orange-100 text-sm mb-2">Total Balance (HBAR)</p>
               <h3 className="text-2xl md:text-3xl font-bold text-white"> 
-                {connection ? walletBalance : "0"} HBAR
+                {activeAccountId ? walletBalance : "0"} HBAR
               </h3>
             </div>
           </div>
