@@ -5,11 +5,18 @@ HedFunds is a decentralized platform built on the Hedera that connects borrowers
 ---
 
 Track 1: 💸Onchain Finance & Real-World Assets (RWA)
+
 Built for: Hedera Africa Hackathon 2025
+
 Team: Team Hedfunds
+
 Live Demo: https://hedfunds.vercel.app/
+
 Repository: https://github.com/Kars07/Hedfunds
+
 Pitch Deck and Prd Document: https://drive.google.com/drive/folders/17Q9ZFpqkxOKRwAglxb-mTJLk8Do6gNEM
+
+
 
 ## Key Features
 
