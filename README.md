@@ -237,254 +237,683 @@ Hedfunds/
 - Enterprise-grade security and scalability
 
 ---
+# Expanded Hedera Transaction Types (Detailed Reference)
 
-## Expanded Hedera Transaction Types (Detailed Reference)
+Below is a comprehensive reference of the Hedera transaction types actively used in HedFunds, including purpose, implementation details, and TypeScript examples from the actual codebase.
 
-Below is a practical, copy-ready reference of the Hedera transaction types used across Hedfunds, including purpose, when to use them, preconditions/roles, and compact TypeScript examples using @hashgraph/sdk. Add these to developer docs or use them to build examples.
+---
 
-### AccountCreateTransaction  
-**Purpose:** create new Hedera accounts for testing (issuers, custodians).  
-**When used:** dev/test bootstrapping; not normally used in production (accounts created by users/custodians off-chain).  
-**Preconditions:** root operator with enough HBAR to fund new account.  
-**Example:**
-```ts
-import { AccountCreateTransaction, PrivateKey } from "@hashgraph/sdk";
+## Smart Contract Interactions
 
-const newKey = PrivateKey.generate();
-const tx = await new AccountCreateTransaction()
-  .setKey(newKey.publicKey)
-  .setInitialBalance(10) // tinybars or Hbar as appropriate in real code
-  .execute(client);
+### ContractExecuteTransaction - Request Loan
+**Purpose:** Submit a new loan request to the smart contract with specified terms.  
+**When used:** When borrowers create loan applications through the Applications page.  
+**Preconditions:** 
+- User must have connected wallet via WalletConnect
+- Valid loan amount within credit score limits
+- Valid interest and deadline parameters
 
-const receipt = await tx.getReceipt(client);
-console.log("New account:", receipt.accountId?.toString());
+**Implementation Details:**
+- Function: `requestLoan(uint256 _loanAmount, uint256 _interest, uint256 _deadline)`
+- Gas: 1,000,000
+- Parameters: loan amount, interest, deadline timestamp (Unix seconds)
+- No payable amount required
+
+**Example from applications.tsx:**
+```typescript
+const requestLoanOnContract = async (
+  loanAmountValue: number, 
+  interestValue: number, 
+  deadlineTimestamp: number
+): Promise<string> => {
+  const accountIdObj = AccountId.fromString(accountId);
+  const transactionId = TransactionId.generate(accountIdObj);
+  
+  // Create contract function parameters
+  const params = new ContractFunctionParameters()
+    .addUint256(loanAmountValue)
+    .addUint256(interestValue)
+    .addUint256(deadlineTimestamp);
+
+  // Create the transaction
+  const transaction = new ContractExecuteTransaction()
+    .setContractId(CONTRACT_ID) // "0.0.7091233"
+    .setGas(1000000)
+    .setFunction("requestLoan", params)
+    .setTransactionId(transactionId);
+  
+  // Freeze and sign
+  const frozenTx = await transaction.freezeWith(hederaClient);
+  const txBytes = frozenTx.toBytes();
+  
+  // Send via WalletConnect (supports multiple wallet formats)
+  const result = await signClient.request({
+    topic: session.topic,
+    chainId: `hedera:${HEDERA_NETWORK}`,
+    request: {
+      method: "hedera_signAndExecuteTransaction",
+      params: {
+        signerAccountId: `hedera:${HEDERA_NETWORK}:${accountId}`,
+        transactionList: Buffer.from(txBytes).toString("base64"),
+      },
+    },
+  });
+  
+  return typeof result === 'string' ? result : JSON.stringify(result);
+};
 ```
 
-### TopicCreateTransaction (HCS topic)  
-**Purpose:** create an HCS topic for immutable event logs (issuance, governance, redemptions).  
-**When used:** bootstrap step to create the project's HCS stream.  
-**Preconditions:** operator account. Consider access control via submitKey.  
-**Example:**
-```ts
-import { TopicCreateTransaction } from "@hashgraph/sdk";
+**Event Emitted:** `LoanRequested(uint256 indexed loanId, address indexed borrower, uint256 loanAmount, uint256 interest, uint256 deadline)`
 
-const tx = await new TopicCreateTransaction().execute(client);
-const receipt = await tx.getReceipt(client);
-const topicId = receipt.topicId!.toString();
-console.log("HCS topic:", topicId);
+---
+
+### ContractExecuteTransaction - Fund Loan (Payable)
+**Purpose:** Fund an existing loan request by transferring HBAR to the smart contract.  
+**When used:** When lenders browse active loans and choose to fund them on the Fund Loans page.  
+**Preconditions:**
+- User must not be the borrower (no self-funding)
+- Loan must be in Pending status (status = 0)
+- Exact loan amount must be sent with transaction
+
+**Implementation Details:**
+- Function: `fundLoan(uint256 _loanId)`
+- Gas: 1,000,000
+- Parameters: loan ID
+- **Payable amount:** Full loan amount in HBAR
+- Converts tinybar to HBAR: `amount / 100000000`
+
+**Example from fundaloan.tsx:**
+```typescript
+const fundLoanOnContract = async (
+  loanId: number, 
+  loanAmount: string
+): Promise<string> => {
+  const accountIdObj = AccountId.fromString(accountId);
+  const transactionId = TransactionId.generate(accountIdObj);
+
+  // Create function parameters with loan ID
+  const params = new ContractFunctionParameters().addUint256(loanId);
+
+  // Calculate amount in HBAR (loanAmount is in tinybar)
+  const amountInHbar = new Hbar(
+    parseInt(loanAmount) / 100000000, 
+    HbarUnit.Hbar
+  );
+
+  // Create payable transaction
+  const transaction = new ContractExecuteTransaction()
+    .setContractId(CONTRACT_ID)
+    .setGas(1000000)
+    .setFunction("fundLoan", params)
+    .setPayableAmount(amountInHbar) // ⚠️ Critical: Must match loan amount
+    .setTransactionId(transactionId);
+
+  const frozenTx = await transaction.freezeWith(hederaClient);
+  const txBytes = frozenTx.toBytes();
+
+  // Multi-wallet format support
+  try {
+    // Try Kabila wallet format first
+    const result = await signClient.request({
+      topic: session.topic,
+      chainId: `hedera:${HEDERA_NETWORK}`,
+      request: {
+        method: "hedera_signAndExecuteTransaction",
+        params: {
+          signerAccountId: `hedera:${HEDERA_NETWORK}:${accountId}`,
+          transactionList: Buffer.from(txBytes).toString("base64"),
+        },
+      },
+    });
+    return typeof result === 'string' ? result : JSON.stringify(result);
+  } catch (firstError) {
+    // Fallback to HashPack format
+    const result = await signClient.request({
+      topic: session.topic,
+      chainId: `hedera:${HEDERA_NETWORK}`,
+      request: {
+        method: "hedera_executeTransaction",
+        params: {
+          signerId: accountId,
+          transactionBytes: Buffer.from(txBytes).toString("base64"),
+        },
+      },
+    });
+    return typeof result === 'string' ? result : JSON.stringify(result);
+  }
+};
 ```
 
-### TopicMessageSubmitTransaction (HCS message)  
-**Purpose:** submit a signed message (or event hash) to an HCS topic for immutable timestamped logging.  
-**When used:** log TOKEN_ISSUED, TOKEN_MINTED, BURN, redemption proofs, governance proposals.  
-**Best practice:** store large payloads off-chain (IPFS, S3) and submit only JSON with pointers and SHA256 hash.  
-**Example:**
-```ts
-import { TopicMessageSubmitTransaction, TopicId } from "@hashgraph/sdk";
+**Event Emitted:** `LoanFunded(uint256 indexed loanId, address indexed lender, uint256 amount)`
 
-const message = JSON.stringify({ event: "TOKEN_ISSUED", tokenId: "0.0.123", hash: "sha256:..." });
-await new TopicMessageSubmitTransaction({ topicId: TopicId.fromString("0.0.x"), message }).execute(client);
+**Error Handling:**
+- `IncorrectFundingAmount`: Payable amount doesn't match loan amount
+- `LoanAlreadyFunded`: Loan status is not Pending
+- `SelfFundingNotAllowed`: Borrower attempting to fund own loan
+- `LoanNotFound`: Invalid loan ID
+
+---
+
+### ContractExecuteTransaction - Repay Loan (Payable)
+**Purpose:** Repay a funded loan with principal + interest to release funds to lender.  
+**When used:** When borrowers repay their active loans on the Loans to Repay page.  
+**Preconditions:**
+- User must be the borrower
+- Loan must be in Funded status (status = 1)
+- Full repayment amount (loan + interest) required
+
+**Implementation Details:**
+- Function: `repayLoan(uint256 _loanId)`
+- Gas: 1,000,000
+- Parameters: loan ID
+- **Payable amount:** Loan amount + interest in HBAR
+- Updates credit score based on payment timing
+
+**Example from loanstoberepaid.tsx:**
+```typescript
+const repayLoanOnContract = async (
+  loanId: number, 
+  totalAmount: string
+): Promise<string> => {
+  const accountIdObj = AccountId.fromString(accountId);
+  const transactionId = TransactionId.generate(accountIdObj);
+
+  const params = new ContractFunctionParameters().addUint256(loanId);
+
+  // Convert total amount (principal + interest) to HBAR
+  const amountInHbar = new Hbar(
+    parseInt(totalAmount) / 100000000, 
+    HbarUnit.Hbar
+  );
+
+  const transaction = new ContractExecuteTransaction()
+    .setContractId(CONTRACT_ID)
+    .setGas(1000000)
+    .setFunction("repayLoan", params)
+    .setPayableAmount(amountInHbar) // ⚠️ Must be exact: principal + interest
+    .setTransactionId(transactionId);
+
+  const frozenTx = await transaction.freezeWith(hederaClient);
+  const txBytes = frozenTx.toBytes();
+
+  // Try multiple wallet formats for compatibility
+  const result = await signClient.request({
+    topic: session.topic,
+    chainId: `hedera:${HEDERA_NETWORK}`,
+    request: {
+      method: "hedera_signAndExecuteTransaction",
+      params: {
+        signerAccountId: `hedera:${HEDERA_NETWORK}:${accountId}`,
+        transactionList: Buffer.from(txBytes).toString("base64"),
+      },
+    },
+  });
+
+  return typeof result === 'string' ? result : JSON.stringify(result);
+};
 ```
 
-### TokenCreateTransaction (HTS)  
-**Purpose:** create an HTS token for an RWA or fund share with metadata and controls (treasury, KYC, freeze, supplyKey).  
-**When used:** when an issuer initially mints a token representing an asset.  
-**Preconditions:** treasury account exists and will hold initial supply; supplyKey or auto-mint controls set.  
-**Example:**
-```ts
-import { TokenCreateTransaction } from "@hashgraph/sdk";
+**Credit Score Impact (determined off-chain):**
+- **Early Payment** (>7 days before deadline): +50 points
+- **On-Time Payment** (within deadline): +35 points  
+- **Late Payment** (after deadline): -50 points
 
-const tx = await new TokenCreateTransaction()
-  .setTokenName("HedFunds-Asset-123")
-  .setTokenSymbol("HFA123")
-  .setTreasuryAccountId(treasuryAccountId)
-  .setInitialSupply(0)
-  .setDecimals(0)
-  .setAdminKey(adminKey)
-  .setSupplyKey(supplyKey)
-  .execute(client);
+**Event Emitted:** `LoanRepaid(uint256 indexed loanId, address indexed borrower, uint256 totalAmount)`
 
-const receipt = await tx.getReceipt(client);
-console.log("tokenId:", receipt.tokenId?.toString());
+**Error Handling:**
+- `IncorrectRepaymentAmount`: Payable amount doesn't match loan + interest
+- `InvalidLoanStatus`: Loan is not in Funded status
+- `UnauthorizedAccess`: Caller is not the borrower
+
+---
+
+## Hedera Mirror Node Queries
+
+### Fetch Contract Events via Mirror Node REST API
+**Purpose:** Query historical contract events to retrieve loan data without querying contract state.  
+**When used:** 
+- Fetch all active loan requests (LoanRequested events)
+- Fetch funded loans for a specific borrower (LoanFunded events)
+- Fetch repayment history (LoanRepaid events)
+
+**API Endpoint Pattern:**
+```
+https://testnet.mirrornode.hedera.com/api/v1/contracts/{CONTRACT_ID}/results/logs
 ```
 
-### TokenMintTransaction  
-**Purpose:** mint additional token supply (if supplyKey allows).  
-**When used:** mint on-collateralization or when issuing shares.  
-**Preconditions:** caller must sign with supplyKey.  
-**Example:**
-```ts
-import { TokenMintTransaction } from "@hashgraph/sdk";
+**Query Parameters:**
+- `topic0`: Event signature hash (identifies event type)
+- `timestamp=gte:START&timestamp=lte:END`: Time range in nanoseconds format
+- `order=desc`: Newest events first
+- `limit=100`: Maximum results per page
 
-await new TokenMintTransaction()
-  .setTokenId(tokenId)
-  .setAmount(1000) // integer amount according to decimals
-  .execute(client);
+**Example: Fetching LoanRequested Events (from fundaloan.tsx):**
+```typescript
+const fetchLoanRequests = async (): Promise<void> => {
+  // Event signature: LoanRequested(uint256,address,uint256,uint256,uint256)
+  const eventSignature = '0xf6cc19e46a340ab5888d736bfc79aef72ae92d12d7b76319d72b0abc170868e6';
+  
+  // Time range (last 6 days - Mirror Node 7-day limit)
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const sixDaysAgoSeconds = nowSeconds - (6 * 24 * 60 * 60);
+  
+  // Format as seconds.nanoseconds (e.g., "1234567890.000000000")
+  const startTime = `${sixDaysAgoSeconds}.000000000`;
+  const endTime = `${nowSeconds}.999999999`;
+  
+  const mirrorNodeUrl = 
+    `https://testnet.mirrornode.hedera.com/api/v1/contracts/${CONTRACT_ID}/results/logs` +
+    `?topic0=${eventSignature}` +
+    `&timestamp=gte:${startTime}` +
+    `&timestamp=lte:${endTime}` +
+    `&order=desc` +
+    `&limit=100`;
+  
+  const response = await fetch(mirrorNodeUrl);
+  const eventsData = await response.json();
+  
+  // Process events
+  if (eventsData.logs && eventsData.logs.length > 0) {
+    for (const log of eventsData.logs) {
+      const topics = log.topics || [];
+      const data = log.data;
+      
+      // Parse indexed parameters from topics
+      const loanIdHex = topics[1];
+      const loanId = parseInt(loanIdHex, 16);
+      
+      const borrowerHex = topics[2];
+      const borrowerAccountId = hexToAccountId(borrowerHex);
+      
+      // Parse non-indexed parameters from data field
+      let dataHex = data.startsWith('0x') ? data.substring(2) : data;
+      
+      // Each parameter is 32 bytes (64 hex chars)
+      const loanAmountHex = dataHex.substring(0, 64);
+      const interestHex = dataHex.substring(64, 128);
+      const deadlineHex = dataHex.substring(128, 192);
+      
+      const loanAmount = BigInt('0x' + loanAmountHex).toString();
+      const interest = BigInt('0x' + interestHex).toString();
+      const deadline = parseInt(deadlineHex, 16);
+      
+      // Verify loan is still active by checking status
+      const isActive = await checkLoanStatus(loanId);
+      
+      if (isActive) {
+        loans.push({
+          loanId,
+          borrower: borrowerAccountId,
+          loanAmount,
+          interest,
+          deadline,
+          status: 0,
+          createdAt: Math.floor(new Date(log.timestamp).getTime() / 1000)
+        });
+      }
+    }
+  }
+};
 ```
 
-### TokenBurnTransaction  
-**Purpose:** burn tokens to reduce supply (redemption, retire asset).  
-**When used:** redemption flows, removal of tokens representing consumed / retired assets.  
-**Preconditions:** signed by supplyKey or burning allowed by issuer policy.  
-**Example:**
-```ts
-import { TokenBurnTransaction } from "@hashgraph/sdk";
-
-await new TokenBurnTransaction()
-  .setTokenId(tokenId)
-  .setAmount(100)
-  .execute(client);
-```
-
-### TokenAssociateTransaction  
-**Purpose:** associate an account with an HTS token before transfers can occur.  
-**When used:** user onboarding; every account must associate before receiving a token.  
-**Preconditions:** account signs the association; otherwise the association fails.  
-**Example:**
-```ts
-import { TokenAssociateTransaction } from "@hashgraph/sdk";
-
-await new TokenAssociateTransaction()
-  .setAccountId(userAccountId)
-  .setTokenIds([tokenId])
-  .freezeWith(client)
-  .sign(userPrivateKey)
-  .execute(client);
-```
-
-### TransferTransaction (HBAR & HTS transfers)  
-**Purpose:** perform HBAR transfers and token transfers in the same atomic transaction.  
-**When used:** token transfers between users, settlements (HBAR used for fees/settlement legs) and internal treasury flows.  
-**Preconditions:** accounts must be associated for token transfers.  
-**Example:**
-```ts
-import { TransferTransaction, Hbar } from "@hashgraph/sdk";
-
-await new TransferTransaction()
-  .addTokenTransfer(tokenId, treasuryAccountId, -10)
-  .addTokenTransfer(tokenId, userAccountId, 10)
-  .addHbarTransfer(treasuryAccountId, Hbar.fromTinybars(-1000))
-  .addHbarTransfer(feeCollectorAccountId, Hbar.fromTinybars(1000))
-  .execute(client);
-```
-
-### TokenFreezeTransaction / TokenUnfreezeTransaction  
-**Purpose:** freeze or unfreeze token transfers on a per-account basis for compliance or custodial control.  
-**When used:** when custodians need to temporarily restrict transfers pending KYC/AML checks.  
-**Preconditions:** token must have a freezeKey set during creation; the transaction must be signed by freezeKey.  
-**Example:**
-```ts
-import { TokenFreezeTransaction } from "@hashgraph/sdk";
-
-await new TokenFreezeTransaction()
-  .setTokenId(tokenId)
-  .setAccountId(userAccountId)
-  .execute(client);
-```
-
-### TokenGrantKycTransaction / TokenRevokeKycTransaction  
-**Purpose:** allow or revoke a user's ability to hold/transfer KYC-restricted tokens.  
-**When used:** onboarding flows that require KYC verification before token interactions.  
-**Preconditions:** token must have a kycKey set and transaction signed by kycKey.  
-**Example:**
-```ts
-import { TokenGrantKycTransaction } from "@hashgraph/sdk";
-
-await new TokenGrantKycTransaction()
-  .setTokenId(tokenId)
-  .setAccountId(userAccountId)
-  .execute(client);
-```
-
-### TokenWipeTransaction  
-**Purpose:** remove tokens from a specific account (e.g., recover lost tokens in custodial flows or enforce compliance).  
-**When used:** custodial remediation, forced redemptions when off-chain proof validates removal.  
-**Preconditions:** wipeKey set on token and legitimate authorization.  
-**Example:**
-```ts
-import { TokenWipeTransaction } from "@hashgraph/sdk";
-
-await new TokenWipeTransaction()
-  .setTokenId(tokenId)
-  .setAccountId(userAccountId)
-  .setAmount(50)
-  .execute(client);
-```
-
-### TokenUpdateTransaction / TokenDeleteTransaction  
-**Purpose:** update token metadata, modify token keys, or delete a token (delete typically requires adminKey).  
-**When used:** governance changes to token parameters, emergency decommission.  
-**Preconditions:** signed by adminKey.  
-**Example:**
-```ts
-import { TokenUpdateTransaction } from "@hashgraph/sdk";
-
-await new TokenUpdateTransaction()
-  .setTokenId(tokenId)
-  .setTokenName("New Name")
-  .execute(client);
-```
-
-### ScheduleCreateTransaction  
-**Purpose:** schedule multi-signature or atomic multi-step operations (e.g., require multiple approvals before minting).  
-**When used:** multi-sig governance operations like scheduled minting that require multiple signatures.  
-**Preconditions:** builders must provide required signers; scheduledTx must be valid.  
-**Example:**
-```ts
-import { ScheduleCreateTransaction } from "@hashgraph/sdk";
-
-const scheduledTx = new TokenMintTransaction().setTokenId(tokenId).setAmount(1000);
-const scheduleTx = await new ScheduleCreateTransaction()
-  .setScheduledTransaction(scheduledTx)
-  .execute(client);
-```
-
-### AccountBalanceQuery  
-**Purpose:** query balances for HBAR and HTS tokens for an account.  
-**When used:** in UI balance checks, reconciliation and audit.  
-**Example:**
-```ts
-import { AccountBalanceQuery } from "@hashgraph/sdk";
-
-const balance = await new AccountBalanceQuery().setAccountId(userAccountId).execute(client);
-console.log(balance.hbars.toString(), balance.tokens);
-```
-
-### TransactionReceipt / TransactionRecord retrieval  
-**Purpose:** confirm finality, fetch transaction status, timestamp, and record (for example to get the transaction consensus timestamp to include in off-chain proofs).  
-**When used:** always after executing a transaction — use receipts for success/failure and records for event details (and timestamps).  
-**Example:**
-```ts
-const txResponse = await tx.execute(client);
-const receipt = await txResponse.getReceipt(client);
-const record = await txResponse.getRecord(client);
-console.log("consensus ts:", record.consensusTimestamp?.toString());
-```
-
-### AccountAllowanceApproveTransaction (allowances)  
-**Purpose:** allow an operator / smart contract / escrow to spend a holder's tokens/HBAR up to an allowance. Useful for gasless UX or delegated custodial flows.  
-**When used:** delegated redemptions or subscription-style flows.  
-**Example:**
-```ts
-import { AccountAllowanceApproveTransaction } from "@hashgraph/sdk";
-
-await new AccountAllowanceApproveTransaction()
-  .approveTokenAllowance(tokenId, holderAccountId, spenderAccountId, 100)
-  .execute(client);
+**Example: Fetching LoanFunded Events (from loanstoberepaid.tsx):**
+```typescript
+const fetchFundedLoans = async (): Promise<void> => {
+  // Event signature: LoanFunded(uint256,address,uint256)
+  const eventSignature = '0xbd7ef6c6281278f6c8ac4ae9ef2f205b52425813c288dd47c377cb6b59c5076e';
+  
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const sixDaysAgoSeconds = nowSeconds - (6 * 24 * 60 * 60);
+  
+  const startTime = `${sixDaysAgoSeconds}.000000000`;
+  const endTime = `${nowSeconds}.999999999`;
+  
+  const mirrorNodeUrl = 
+    `https://testnet.mirrornode.hedera.com/api/v1/contracts/${CONTRACT_ID}/results/logs` +
+    `?topic0=${eventSignature}` +
+    `&timestamp=gte:${startTime}` +
+    `&timestamp=lte:${endTime}` +
+    `&order=desc` +
+    `&limit=100`;
+  
+  const eventsResponse = await fetch(mirrorNodeUrl);
+  const eventsData = await eventsResponse.json();
+  
+  if (eventsData.logs && eventsData.logs.length > 0) {
+    for (const log of eventsData.logs) {
+      const topics = log.topics || [];
+      const loanIdHex = topics[1];
+      const loanId = parseInt(loanIdHex, 16);
+      
+      // Get full loan details from contract
+      const loanDetails = await getLoanDetails(loanId);
+      
+      // Only show loans where current user is borrower and status is Funded
+      if (loanDetails && loanDetails.borrower === accountId && loanDetails.status === 1) {
+        loans.push({
+          ...loanDetails,
+          fundedAt: Math.floor(new Date(log.timestamp).getTime() / 1000)
+        });
+      }
+    }
+  }
+};
 ```
 
 ---
 
-## Best-practices & Operational Notes
+### Contract State Query via Mirror Node
+**Purpose:** Query current loan state without executing a transaction (view function).  
+**When used:** 
+- Verify if a loan is still active (status check)
+- Get complete loan details (borrower, lender, amounts, deadline, status)
 
-- **HCS message sizing:** HCS messages have a practical size limit. For large documents or proofs, store off-chain (IPFS/S3/Arweave) and log a SHA256 hash + pointer on HCS.
-- **Always check receipts and records:** receipts confirm consensus success; records include timestamps and any returned bytes. Use consensus timestamps when building verifiable off-chain proofs.
-- **Authorization & keys:** set adminKey, supplyKey, kycKey, freezeKey and wipeKey carefully during TokenCreate. Keep private keys in secure KMS for production.
-- **Association requirement:** accounts must be associated with a token before receiving it — make this explicit in onboarding flows.
-- **Atomicity:** TransferTransaction can move HBAR and tokens atomically — use this for settlement legs to avoid partial states.
-- **Fee budgeting:** each transaction type has small predictable fees; batch non-urgent logs or compress messages to keep costs minimal.
+**API Endpoint:**
+```
+https://testnet.mirrornode.hedera.com/api/v1/contracts/call
+```
+
+**Method:** POST  
+**Request Body:**
+```json
+{
+  "data": "0x{functionSelector}{encodedParams}",
+  "to": "0x{contractAddressInHex}",
+  "estimate": false,
+  "gas": 100000
+}
+```
+
+**Example: Get Loan Details (from loanstoberepaid.tsx):**
+```typescript
+const getLoanDetails = async (loanId: number): Promise<FundedLoan | null> => {
+  // Function selector: getLoan(uint256) = 0x504006ca
+  const functionSelector = '504006ca';
+  const paddedLoanId = loanId.toString(16).padStart(64, '0');
+  const callData = '0x' + functionSelector + paddedLoanId;
+
+  // Convert contract ID "0.0.7091233" to hex address
+  const contractIdParts = CONTRACT_ID.split('.');
+  const contractNum = parseInt(contractIdParts[2]);
+  const contractHex = '0x' + contractNum.toString(16).padStart(40, '0');
+
+  const requestBody = {
+    data: callData,
+    to: contractHex,
+    estimate: false,
+    gas: 100000
+  };
+
+  const response = await fetch(
+    'https://testnet.mirrornode.hedera.com/api/v1/contracts/call',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(requestBody)
+    }
+  );
+
+  const result = await response.json();
+  
+  if (result.result) {
+    const resultHex = result.result.startsWith('0x') 
+      ? result.result.substring(2) 
+      : result.result;
+    
+    // Parse loan struct (each field is 32 bytes = 64 hex chars)
+    // Struct: (address borrower, address lender, uint256 loanAmount, 
+    //          uint256 interest, uint256 deadline, uint8 status, uint256 createdAt)
+    
+    // Addresses are right-aligned in 32 bytes, take last 40 hex chars (20 bytes)
+    const borrowerHex = '0x' + resultHex.substring(24, 64);
+    const lenderHex = '0x' + resultHex.substring(88, 128);
+    
+    const loanAmountHex = resultHex.substring(128, 192);
+    const interestHex = resultHex.substring(192, 256);
+    const deadlineHex = resultHex.substring(256, 320);
+    const statusHex = resultHex.substring(320, 384);
+    const createdAtHex = resultHex.substring(384, 448);
+
+    // Convert to readable values
+    const borrower = await resolveAccountId(borrowerHex);
+    const lender = await resolveAccountId(lenderHex);
+    const loanAmount = BigInt('0x' + loanAmountHex).toString();
+    const interest = BigInt('0x' + interestHex).toString();
+    const deadline = parseInt(deadlineHex, 16);
+    const status = parseInt(statusHex, 16);
+    const createdAt = parseInt(createdAtHex, 16);
+
+    return {
+      loanId,
+      borrower,
+      lender,
+      loanAmount,
+      interest,
+      deadline,
+      status,
+      createdAt,
+      fundedAt: Date.now() / 1000
+    };
+  }
+
+  return null;
+};
+```
+
+**Example: Check Loan Active Status (from fundaloan.tsx):**
+```typescript
+const checkLoanStatus = async (loanId: number): Promise<boolean> => {
+  // Query getLoan(uint256) and check if status == 0 (Pending)
+  const functionSelector = '504006ca';
+  const paddedLoanId = loanId.toString(16).padStart(64, '0');
+  const callData = '0x' + functionSelector + paddedLoanId;
+
+  const contractIdParts = CONTRACT_ID.split('.');
+  const contractNum = parseInt(contractIdParts[2]);
+  const contractHex = '0x' + contractNum.toString(16).padStart(40, '0');
+
+  const response = await fetch(
+    'https://testnet.mirrornode.hedera.com/api/v1/contracts/call',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        data: callData,
+        to: contractHex,
+        estimate: false,
+        gas: 100000
+      })
+    }
+  );
+
+  const result = await response.json();
+  
+  if (result.result) {
+    const resultHex = result.result.startsWith('0x') 
+      ? result.result.substring(2) 
+      : result.result;
+    
+    // Status field is at byte offset 160 (5 * 32 bytes)
+    const statusHex = resultHex.substring(320, 384);
+    const status = parseInt(statusHex, 16);
+    
+    // Status 0 = Pending (active), 1 = Funded, 2 = Repaid, 3 = Defaulted
+    return status === 0;
+  }
+
+  return true; // Assume active if check fails
+};
+```
 
 ---
+
+## WalletConnect Integration
+
+### Multi-Wallet Format Support
+**Purpose:** Support multiple Hedera wallet providers (Kabila, HashPack, Blade) with different transaction signing formats.  
+**When used:** All contract execution transactions require wallet signatures.
+
+**Supported Formats:**
+
+1. **Kabila Wallet Format:**
+```typescript
+{
+  method: "hedera_signAndExecuteTransaction",
+  params: {
+    signerAccountId: `hedera:${HEDERA_NETWORK}:${accountId}`,
+    transactionList: Buffer.from(txBytes).toString("base64")
+  }
+}
+```
+
+2. **HashPack Wallet Format:**
+```typescript
+{
+  method: "hedera_executeTransaction",
+  params: {
+    signerId: accountId,
+    transactionBytes: Buffer.from(txBytes).toString("base64")
+  }
+}
+```
+
+3. **Blade Wallet Format:**
+```typescript
+{
+  method: "hedera_signTransaction",
+  params: {
+    signerAccountId: accountId,
+    transactionBytes: Buffer.from(txBytes).toString("base64")
+  }
+}
+```
+
+**Implementation Strategy:** Try each format sequentially with fallback handling.
+
+---
+
+## Utility Functions
+
+### Hedera Account ID Conversion
+**Purpose:** Convert between hex addresses (used in contract events) and Hedera account IDs (0.0.N format).
+
+**Hex to Account ID:**
+```typescript
+const hexToAccountId = (hex: string): string => {
+  // Remove '0x' prefix
+  let cleanHex = hex.startsWith('0x') ? hex.substring(2) : hex;
+  
+  // Pad to even length
+  if (cleanHex.length % 2 !== 0) {
+    cleanHex = '0' + cleanHex;
+  }
+  
+  // Remove leading zeros
+  const trimmedHex = cleanHex.replace(/^0+/, '') || '0';
+  
+  // Convert to decimal using BigInt (handles large numbers)
+  const bigIntValue = BigInt('0x' + trimmedHex);
+  const accountNum = bigIntValue.toString(10);
+  
+  // Return in Hedera format: shard.realm.num
+  return `0.0.${accountNum}`;
+};
+```
+
+**Account ID Resolution (with Mirror Node fallback):**
+```typescript
+const resolveAccountId = async (hex: string): Promise<string> => {
+  const cleanHex = hex.startsWith('0x') ? hex.substring(2) : hex;
+  
+  // Simple case: address with many leading zeros
+  if (cleanHex.match(/^0{24,}/)) {
+    const trimmed = cleanHex.replace(/^0+/, '') || '0';
+    return `0.0.${parseInt(trimmed, 16)}`;
+  }
+  
+  // Complex case: Query Mirror Node for account lookup
+  try {
+    const response = await fetch(
+      `https://testnet.mirrornode.hedera.com/api/v1/accounts/${hex}`
+    );
+    if (response.ok) {
+      const data = await response.json();
+      if (data.account) {
+        return data.account; // Returns "0.0.N" format
+      }
+    }
+  } catch (error) {
+    console.error('Error resolving account:', error);
+  }
+  
+  return hex; // Return original if resolution fails
+};
+```
+
+---
+
+## Best Practices & Operational Notes
+
+### Transaction Management
+1. **Always generate unique transaction IDs** using `TransactionId.generate(accountId)`
+2. **Freeze transactions** before converting to bytes: `transaction.freezeWith(hederaClient)`
+3. **Set appropriate gas limits**: 1,000,000 is safe for most contract calls
+4. **Handle wallet disconnection** gracefully with session event listeners
+
+### Error Handling
+1. **Wrap all blockchain calls** in try-catch blocks
+2. **Parse transaction results** flexibly (string or JSON object)
+3. **Implement retry logic** for wallet connection timeouts (120s default)
+4. **Validate input parameters** before contract calls to save gas
+
+### Event Processing
+1. **Use event signatures** to filter relevant logs from Mirror Node
+2. **Limit time ranges** to 6 days (Mirror Node has 7-day limit)
+3. **Parse indexed vs non-indexed parameters** correctly:
+   - Indexed: In `topics` array
+   - Non-indexed: In `data` field (concatenated 32-byte chunks)
+4. **Verify loan status** with state queries before displaying to users
+
+### State Synchronization
+1. **Refresh data after transactions** with 3-second delay for blockchain finality
+2. **Use Mirror Node for historical data**, contract state queries for current status
+3. **Cache credit scores** per user to minimize API calls
+4. **Implement loading states** for better UX during blockchain interactions
+
+### Security Considerations
+1. **Validate all user inputs** before submitting to contract
+2. **Prevent self-funding** by checking borrower ≠ lender
+3. **Require exact payable amounts** to prevent under/over-funding
+4. **Use WalletConnect** for secure transaction signing (never expose private keys)
+5. **Implement credit score checks** before loan approval
+
+### Performance Optimization
+1. **Batch Mirror Node queries** with appropriate limits (100 events max)
+2. **Process only relevant events** (filter by user context)
+3. **Use view functions** for read operations instead of transactions
+4. **Implement pagination** for large event logs (not yet implemented but recommended)
+
+---
+
+## Contract ABI Reference
+
+For complete ABI details, see `hedera_abi_interface.txt` which includes:
+- All read-only view functions
+- All state-changing functions
+- Event signatures and parameters
+- Custom error types
+
+**Key Functions:**
+- `requestLoan(uint256,uint256,uint256)` - 0xedadbbfe
+- `fundLoan(uint256)` payable - 0x846b909a
+- `repayLoan(uint256)` payable - 0xab7b1c89
+- `getLoan(uint256)` view - 0x504006ca
+- `isLoanActive(uint256)` view - 0xb03590be
+
+**Key Events:**
+- `LoanRequested` - 0xf6cc19e46a340ab5888d736bfc79aef72ae92d12d7b76319d72b0abc170868e6
+- `LoanFunded` - 0xbd7ef6c6281278f6c8ac4ae9ef2f205b52425813c288dd47c377cb6b59c5076e
+- `LoanRepaid` - 0x... (check contract for exact signature)
 
 ## Dependencies
 
