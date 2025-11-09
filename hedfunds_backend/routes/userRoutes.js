@@ -76,7 +76,7 @@ router.get("/verify/:token", async (req, res) => {
           <div class="container">
             <h1>Email Verified Successfully!</h1>
             <p>Your email has been successfully verified. You can now log in to your account.</p>
-            <a href="https://swift-funds.vercel.app/login" class="button">Go to Login</a>
+            <a href="https://hedfunds.vercel.app/login" class="button">Go to Login</a>
           </div>
         </body>
       </html>

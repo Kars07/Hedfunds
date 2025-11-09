@@ -9,7 +9,7 @@ interface FormData {
   password: string;
 }
 
-const API_URL = "https://swiftfund-6b61.onrender.com";
+const API_URL = "https://hedfunds.onrender.com";
 
 const Registration: React.FC = () => {
   const [formData, setFormData] = useState<FormData>({ fullname: '', email: '', password: '' });

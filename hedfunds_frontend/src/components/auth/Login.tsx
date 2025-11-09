@@ -2,7 +2,7 @@ import React, { useState, FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import logo from '../../assets/logo.png';
 
-const API_URL = "https://swiftfund-6b61.onrender.com";
+const API_URL = "https://hedfunds.onrender.com";
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState<string>('');

@@ -19,7 +19,7 @@ const WALLETCONNECT_PROJECT_ID = "cb09000e29ac8eb293421c4501e4ecb9";
 const CONTRACT_ID = "0.0.7091233";
 const HEDERA_NETWORK = "testnet";
 
-const API_URL = "https://swiftfund-6b61.onrender.com/api/loans";
+const API_URL = "https://hedfunds.onrender.com/api/loans";
 
 type CreditScoreData = {
     current_score: number;

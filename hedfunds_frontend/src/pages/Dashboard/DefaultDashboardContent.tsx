@@ -11,7 +11,7 @@ import { Client } from "@hashgraph/sdk";
 
 // ==================== CONFIGURATION ====================
 const CONTRACT_ID = "0.0.7091233";
-const API_BASE_URL = "https://swiftfund-6b61.onrender.com";
+const API_BASE_URL = "https://hedfunds.onrender.com";
 const WALLETCONNECT_PROJECT_ID = "cb09000e29ac8eb293421c4501e4ecb9";
 const HEDERA_NETWORK = "testnet";
 

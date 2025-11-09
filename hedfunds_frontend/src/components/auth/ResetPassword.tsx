@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import logo from '../../assets/logo.png';
 
-const API_URL = "https://swiftfund-6b61.onrender.com";
+const API_URL = "https://hedfunds.onrender.com";
 
 const ResetPassword: React.FC = () => {
   const [newPassword, setNewPassword] = useState('');

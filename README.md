@@ -11,6 +11,10 @@ Built for: Hedera Africa Hackathon 2025
 Team: Team Hedfunds
 
 Live Demo: https://hedfunds.vercel.app/
+(Please note that if it's taking too long to register yourself on the platform kindly use this account login details:
+email:
+password:
+)
 
 Repository: https://github.com/Kars07/Hedfunds
 
